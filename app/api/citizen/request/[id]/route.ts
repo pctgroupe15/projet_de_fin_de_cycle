@@ -17,24 +17,17 @@ export async function GET(
       );
     }
 
-    const requestDetails = await prisma.birthDeclaration.findUnique({
+    const request = await prisma.birthCertificate.findUnique({
       where: {
         id: params.id,
         citizenId: session.user.id
       },
       include: {
-        documents: true,
-        payment: true,
-        agent: {
-          select: {
-            name: true,
-            email: true
-          }
-        }
+        files: true
       }
     });
 
-    if (!requestDetails) {
+    if (!request) {
       return NextResponse.json(
         { success: false, message: 'Demande non trouvée' },
         { status: 404 }
@@ -43,12 +36,12 @@ export async function GET(
 
     return NextResponse.json({
       success: true,
-      data: requestDetails
+      data: request
     });
   } catch (error) {
     console.error('Error fetching request details:', error);
     return NextResponse.json(
-      { success: false, message: 'Erreur lors de la récupération des détails de la demande' },
+      { success: false, message: 'Erreur lors de la récupération des détails' },
       { status: 500 }
     );
   }
