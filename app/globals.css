@@ -1,0 +1,57 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import '~antd/dist/reset.css';
+
+/* Remplacer -ms-high-contrast par le nouveau standard */
+@media (forced-colors: active) {
+  /* Styles pour le mode de contraste élevé */
+  .ant-btn {
+    border: 1px solid ButtonText;
+    color: ButtonText;
+    background-color: ButtonFace;
+  }
+
+  .ant-card {
+    border: 1px solid CanvasText;
+    background-color: Canvas;
+  }
+
+  .ant-upload {
+    border: 1px solid ButtonText;
+  }
+
+  .ant-upload-list-item {
+    border: 1px solid ButtonText;
+  }
+
+  a {
+    color: LinkText;
+  }
+}
+
+/* Styles de base */
+:root {
+  --foreground-rgb: 0, 0, 0;
+  --background-start-rgb: 214, 219, 220;
+  --background-end-rgb: 255, 255, 255;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --foreground-rgb: 255, 255, 255;
+    --background-start-rgb: 0, 0, 0;
+    --background-end-rgb: 0, 0, 0;
+  }
+}
+
+body {
+  color: rgb(var(--foreground-rgb));
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    rgb(var(--background-end-rgb))
+  )
+  rgb(var(--background-start-rgb));
+}
