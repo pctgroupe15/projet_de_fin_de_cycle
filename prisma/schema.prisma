@@ -1,0 +1,155 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             String    @id @default(auto()) @map("_id") @db.ObjectId
+  email          String    @unique
+  name           String?
+  hashedPassword String    // Le mot de passe hashé
+  role           String    @default("admin")
+  status         String    @default("active")
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
+model Request {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  status      String
+  type        String
+  citizenId   String   @db.ObjectId
+  citizen     Citizen  @relation(fields: [citizenId], references: [id])
+  agentId     String?  @db.ObjectId
+  agent       Agent?   @relation(fields: [agentId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  assignedTo  String?  @db.ObjectId
+}
+
+model BirthDeclaration {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  citizenId       String   @db.ObjectId
+  citizen         Citizen  @relation(fields: [citizenId], references: [id])
+  childFirstName  String
+  childLastName   String
+  childGender     String
+  birthDate       DateTime
+  birthPlace      String
+  fatherFirstName String
+  fatherLastName  String
+  motherFirstName String
+  motherLastName  String
+  status          String   @default("en_attente")
+  rejectReason    String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  documents       Document[]
+  payment         Payment?
+  agent           Agent?   @relation(fields: [agentId], references: [id])
+  agentId         String?  @db.ObjectId
+}
+
+model Document {
+  id                String   @id @default(auto()) @map("_id") @db.ObjectId
+  birthDeclarationId String? @db.ObjectId
+  birthDeclaration  BirthDeclaration? @relation(fields: [birthDeclarationId], references: [id])
+  type             String
+  url              String
+  birthCertificateId String? @db.ObjectId
+  birthCertificate  BirthCertificate? @relation(fields: [birthCertificateId], references: [id])
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model Payment {
+  id                String   @id @default(auto()) @map("_id") @db.ObjectId
+  birthDeclarationId String  @db.ObjectId @unique
+  birthDeclaration  BirthDeclaration @relation(fields: [birthDeclarationId], references: [id])
+  amount           Float
+  status           String   @default("en_attente")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model Notification {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  citizenId   String   @db.ObjectId
+  citizen     Citizen  @relation(fields: [citizenId], references: [id])
+  title       String
+  message     String
+  type        String   // "BIRTH_CERTIFICATE", "BIRTH_DECLARATION", etc.
+  status      String   @default("UNREAD") // "UNREAD", "READ"
+  referenceId String?  @db.ObjectId // ID de la demande concernée
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Citizen {
+  id             String    @id @default(auto()) @map("_id") @db.ObjectId
+  email          String    @unique
+  name           String?
+  hashedPassword String    // Le mot de passe hashé
+  role           String    @default("citizen")
+  status         String    @default("active")
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  requests       Request[]
+  birthDeclarations BirthDeclaration[]
+  birthCertificates BirthCertificate[]
+  notifications  Notification[]
+}
+
+model Agent {
+  id                String   @id @default(auto()) @map("_id") @db.ObjectId
+  email            String   @unique
+  hashedPassword   String   // Le mot de passe hashé
+  firstName        String
+  lastName         String
+  role             String   @default("agent")
+  status           String   @default("active")
+  birthDeclarations BirthDeclaration[]
+  birthCertificates BirthCertificate[]
+  requests         Request[]
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model Admin {
+  id             String    @id @default(auto()) @map("_id") @db.ObjectId
+  email          String    @unique
+  name           String?
+  hashedPassword String
+  role           String    @default("admin")
+  status         String    @default("active")
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
+model BirthCertificate {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  citizenId       String   @db.ObjectId
+  citizen         Citizen  @relation(fields: [citizenId], references: [id])
+  fullName        String
+  birthDate       DateTime
+  birthPlace      String
+  fatherFullName  String?
+  motherFullName  String?
+  acteNumber      String?
+  status          String   @default("PENDING")
+  rejectReason    String?
+  trackingNumber  String   @unique
+  comment         String?
+  files           Document[]
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  agent           Agent?   @relation(fields: [agentId], references: [id])
+  agentId         String?  @db.ObjectId
+}
