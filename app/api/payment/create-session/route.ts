@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import Stripe from 'stripe';
+import { prisma } from '@/lib/prisma';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2023-10-16',
@@ -20,6 +21,22 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { requestId, amount, paymentMethod } = body;
 
+    // Vérifier le type de demande
+    const birthCertificate = await prisma.birthCertificate.findUnique({
+      where: { id: requestId }
+    });
+
+    const birthDeclaration = await prisma.birthDeclaration.findUnique({
+      where: { id: requestId }
+    });
+
+    if (!birthCertificate && !birthDeclaration) {
+      return NextResponse.json(
+        { error: 'Demande non trouvée' },
+        { status: 404 }
+      );
+    }
+
     // Créer la session de paiement Stripe
     const stripeSession = await stripe.checkout.sessions.create({
       payment_method_types: paymentMethod === 'mobile_money' ? ['card'] : ['card'],
@@ -28,7 +45,7 @@ export async function POST(request: Request) {
           price_data: {
             currency: 'xof',
             product_data: {
-              name: 'Demande de document',
+              name: birthCertificate ? 'Acte de naissance' : 'Déclaration de naissance',
             },
             unit_amount: amount * 100, // Stripe utilise les centimes
           },
@@ -41,6 +58,7 @@ export async function POST(request: Request) {
       metadata: {
         requestId,
         userId: session.user.id,
+        type: birthCertificate ? 'birth_certificate' : 'birth_declaration'
       },
     });
 

@@ -43,6 +43,13 @@ export async function POST(request: Request) {
     const [fatherFirstName, fatherLastName] = data.fatherName.split(' ').filter(Boolean);
     const [motherFirstName, motherLastName] = data.motherName.split(' ').filter(Boolean);
 
+    if (!motherLastName) {
+      return NextResponse.json(
+        { success: false, error: 'Le nom de famille de la mère est requis' },
+        { status: 400 }
+      );
+    }
+
     // Créer la déclaration de naissance dans la base de données
     const birthDeclaration = await prisma.birthDeclaration.create({
       data: {
@@ -72,17 +79,10 @@ export async function POST(request: Request) {
               })
             }
           ]
-        },
-        payment: {
-          create: {
-            amount: 1000,
-            status: 'en_attente'
-          }
         }
       },
       include: {
-        documents: true,
-        payment: true
+        documents: true
       }
     });
 

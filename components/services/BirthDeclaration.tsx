@@ -27,7 +27,11 @@ const formSchema = z.object({
     required_error: "Le genre est requis",
   }),
   fatherName: z.string().min(2, "Le nom du père est requis"),
-  motherName: z.string().min(2, "Le nom de la mère est requis"),
+  motherName: z.string()
+    .min(2, "Le nom de la mère est requis")
+    .refine((val) => val.split(' ').length >= 2, {
+      message: "Veuillez entrer le prénom et le nom de famille de la mère"
+    }),
   receptionMode: z.string().min(1, "Le mode de réception est requis"),
   deliveryAddress: z.string().optional(),
 });
@@ -84,7 +88,7 @@ export default function BirthDeclaration() {
       if (birthCertificateFile) {
         const formData = new FormData();
         formData.append('file', birthCertificateFile);
-        formData.append('requestId', result.id);
+        formData.append('requestId', result.data.id);
 
         const uploadResponse = await fetch('/api/citizen/document/upload-birth-certificate', {
           method: 'POST',
