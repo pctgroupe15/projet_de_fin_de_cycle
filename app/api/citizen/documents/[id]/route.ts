@@ -6,10 +6,20 @@ import { BirthCertificate, BirthDeclaration, Document } from '@prisma/client';
 
 type BirthCertificateWithFiles = BirthCertificate & {
   files: Document[];
+  payment?: {
+    id: string;
+    status: string;
+    amount: number;
+  } | null;
 };
 
 type BirthDeclarationWithDocuments = BirthDeclaration & {
   documents: Document[];
+  payment?: {
+    id: string;
+    status: string;
+    amount: number;
+  } | null;
 };
 
 interface DocumentFile {
@@ -35,6 +45,11 @@ interface DocumentResponse {
   createdAt: Date;
   updatedAt: Date;
   files: DocumentFile[];
+  payment?: {
+    id: string;
+    status: string;
+    amount: number;
+  } | null;
 }
 
 export async function GET(
@@ -58,7 +73,8 @@ export async function GET(
         citizenId: session.user.id
       },
       include: {
-        files: true
+        files: true,
+        payment: true
       }
     }) as BirthCertificateWithFiles | null;
 
@@ -83,7 +99,8 @@ export async function GET(
           url: file.url,
           createdAt: file.createdAt,
           updatedAt: file.updatedAt
-        }))
+        })),
+        payment: birthCertificate.payment
       };
 
       return NextResponse.json({
@@ -99,7 +116,8 @@ export async function GET(
         citizenId: session.user.id
       },
       include: {
-        documents: true
+        documents: true,
+        payment: true
       }
     }) as BirthDeclarationWithDocuments | null;
 
@@ -123,7 +141,8 @@ export async function GET(
           url: doc.url,
           createdAt: doc.createdAt,
           updatedAt: doc.updatedAt
-        }))
+        })),
+        payment: birthDeclaration.payment
       };
 
       return NextResponse.json({

@@ -62,6 +62,8 @@ model BirthDeclaration {
   payment         Payment?
   agent           Agent?   @relation(fields: [agentId], references: [id])
   agentId         String?  @db.ObjectId
+  receptionMode   String   @default("pickup")
+  deliveryAddress String?
 }
 
 model Document {
@@ -78,10 +80,12 @@ model Document {
 
 model Payment {
   id                String   @id @default(auto()) @map("_id") @db.ObjectId
-  birthDeclarationId String  @db.ObjectId @unique
-  birthDeclaration  BirthDeclaration @relation(fields: [birthDeclarationId], references: [id])
+  birthDeclarationId String? @db.ObjectId @unique
+  birthDeclaration  BirthDeclaration? @relation(fields: [birthDeclarationId], references: [id])
+  birthCertificateId String? @db.ObjectId @unique
+  birthCertificate  BirthCertificate? @relation(fields: [birthCertificateId], references: [id])
   amount           Float
-  status           String   @default("en_attente")
+  status           String   @default("PENDING")
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 }
@@ -159,4 +163,5 @@ model BirthCertificate {
   updatedAt       DateTime @updatedAt
   agent           Agent?   @relation(fields: [agentId], references: [id])
   agentId         String?  @db.ObjectId
+  payment         Payment?
 }

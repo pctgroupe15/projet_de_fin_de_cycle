@@ -7,25 +7,25 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Download, Mail, Clock, CheckCircle, XCircle, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
+import { format } from "date-fns";
+import { fr } from "date-fns/locale";
 
 interface RequestDetails {
   id: string;
-  childName: string;
+  fullName: string;
   birthDate: string;
-  birthTime: string;
   birthPlace: string;
-  gender: string;
-  fatherName: string;
-  motherName: string;
+  fatherFullName: string;
+  motherFullName: string;
   status: string;
   trackingNumber: string;
   createdAt: string;
   updatedAt: string;
-  documents: {
-    birthCertificate: string;
-    familyBook: string | null;
-  };
-  payment: {
+  files: {
+    type: string;
+    url: string;
+  }[];
+  payment?: {
     amount: number;
     method: string;
     status: string;
@@ -55,7 +55,7 @@ const RequestDetails = ({ params }: { params: { id: string } }) => {
 
   const fetchRequestDetails = async () => {
     try {
-      const response = await fetch(`/api/citizen/requests/${params.id}`);
+      const response = await fetch(`/api/citizen/request/${params.id}`);
       const data = await response.json();
       if (data.success) {
         setRequest(data.data);
@@ -97,7 +97,7 @@ const RequestDetails = ({ params }: { params: { id: string } }) => {
       {
         icon: <Clock className="h-4 w-4" />,
         title: 'Demande créée',
-        date: new Date(request.createdAt).toLocaleDateString(),
+        date: format(new Date(request.createdAt), "dd MMMM yyyy", { locale: fr }),
         variant: 'success'
       }
     ];
@@ -113,19 +113,23 @@ const RequestDetails = ({ params }: { params: { id: string } }) => {
       items.push({
         icon: <CheckCircle className="h-4 w-4" />,
         title: 'Demande complétée',
-        date: new Date(request.updatedAt).toLocaleDateString(),
+        date: format(new Date(request.updatedAt), "dd MMMM yyyy", { locale: fr }),
         variant: 'success'
       });
     } else if (request.status === 'REJECTED') {
       items.push({
         icon: <XCircle className="h-4 w-4" />,
         title: 'Demande rejetée',
-        date: new Date(request.updatedAt).toLocaleDateString(),
+        date: format(new Date(request.updatedAt), "dd MMMM yyyy", { locale: fr }),
         variant: 'destructive'
       });
     }
 
     return items;
+  };
+
+  const handlePayment = () => {
+    router.push(`/citizen/payment?requestId=${params.id}&amount=5000`);
   };
 
   if (loading) {
@@ -176,7 +180,7 @@ const RequestDetails = ({ params }: { params: { id: string } }) => {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Date de création</p>
-                <p>{new Date(request.createdAt).toLocaleDateString()}</p>
+                <p>{format(new Date(request.createdAt), "dd MMMM yyyy", { locale: fr })}</p>
               </div>
             </div>
           </div>
@@ -185,32 +189,22 @@ const RequestDetails = ({ params }: { params: { id: string } }) => {
 
       <Card>
         <CardHeader>
-          <CardTitle>Informations de l'enfant</CardTitle>
+          <CardTitle>Informations personnelles</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid gap-4">
             <div>
               <p className="text-sm text-muted-foreground">Nom complet</p>
-              <p>{request.childName}</p>
+              <p>{request.fullName}</p>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <p className="text-sm text-muted-foreground">Date de naissance</p>
-                <p>{new Date(request.birthDate).toLocaleDateString()}</p>
+                <p>{format(new Date(request.birthDate), "dd MMMM yyyy", { locale: fr })}</p>
               </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Heure de naissance</p>
-                <p>{request.birthTime}</p>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
               <div>
                 <p className="text-sm text-muted-foreground">Lieu de naissance</p>
                 <p>{request.birthPlace}</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Genre</p>
-                <p>{request.gender === 'MALE' ? 'Masculin' : 'Féminin'}</p>
               </div>
             </div>
           </div>
@@ -225,69 +219,64 @@ const RequestDetails = ({ params }: { params: { id: string } }) => {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <p className="text-sm text-muted-foreground">Nom du père</p>
-              <p>{request.fatherName}</p>
+              <p>{request.fatherFullName}</p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Nom de la mère</p>
-              <p>{request.motherName}</p>
+              <p>{request.motherFullName}</p>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Documents</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div>
-              <p className="text-sm text-muted-foreground mb-2">Acte de naissance</p>
-              <Button variant="outline" size="sm" asChild>
-                <a href={request.documents.birthCertificate} target="_blank" rel="noopener noreferrer">
-                  <Download className="h-4 w-4 mr-2" />
-                  Télécharger
-                </a>
-              </Button>
+      {request.files && request.files.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Documents</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {request.files.map((file, index) => (
+                <div key={index}>
+                  <p className="text-sm text-muted-foreground mb-2">{file.type}</p>
+                  <Button variant="outline" size="sm" asChild>
+                    <a href={file.url} target="_blank" rel="noopener noreferrer">
+                      <Download className="h-4 w-4 mr-2" />
+                      Télécharger
+                    </a>
+                  </Button>
+                </div>
+              ))}
             </div>
-            {request.documents.familyBook && (
+          </CardContent>
+        </Card>
+      )}
+
+      {request.payment && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Paiement</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-3 gap-4">
               <div>
-                <p className="text-sm text-muted-foreground mb-2">Livre de famille</p>
-                <Button variant="outline" size="sm" asChild>
-                  <a href={request.documents.familyBook} target="_blank" rel="noopener noreferrer">
-                    <Download className="h-4 w-4 mr-2" />
-                    Télécharger
-                  </a>
-                </Button>
+                <p className="text-sm text-muted-foreground">Montant</p>
+                <p>{request.payment.amount} FCFA</p>
               </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Paiement</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-3 gap-4">
-            <div>
-              <p className="text-sm text-muted-foreground">Montant</p>
-              <p>{request.payment.amount} FCFA</p>
+              <div>
+                <p className="text-sm text-muted-foreground">Méthode</p>
+                <p>{request.payment.method}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Statut</p>
+                <Badge variant={request.payment.status === 'PAID' ? 'success' : 'destructive'}>
+                  {request.payment.status === 'PAID' ? 'Payé' : 'Non payé'}
+                </Badge>
+              </div>
             </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Méthode</p>
-              <p>{request.payment.method}</p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Statut</p>
-              <Badge variant={request.payment.status === 'PAID' ? 'success' : 'destructive'}>
-                {request.payment.status === 'PAID' ? 'Payé' : 'Non payé'}
-              </Badge>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>
@@ -333,23 +322,13 @@ const RequestDetails = ({ params }: { params: { id: string } }) => {
         </Card>
       )}
 
-      <div className="flex gap-4">
-        <Button
-          onClick={() => {/* TODO: Implement receipt download */}}
-          className="flex items-center gap-2"
-        >
-          <Download className="h-4 w-4" />
-          Télécharger le reçu
-        </Button>
-        <Button
-          variant="outline"
-          onClick={() => {/* TODO: Implement email receipt */}}
-          className="flex items-center gap-2"
-        >
-          <Mail className="h-4 w-4" />
-          Recevoir par email
-        </Button>
-      </div>
+      {request.status === "PENDING" && (
+        <div className="mt-6">
+          <Button onClick={handlePayment} className="w-full">
+            Passer au paiement
+          </Button>
+        </div>
+      )}
     </div>
   );
 };

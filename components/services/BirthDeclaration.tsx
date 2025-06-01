@@ -15,6 +15,8 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import { ReceptionModeSelect } from "@/components/forms/reception-mode-select";
+import { BirthCertificateUpload } from "@/components/forms/birth-certificate-upload";
 
 const formSchema = z.object({
   childName: z.string().min(2, "Le nom de l'enfant est requis"),
@@ -26,12 +28,15 @@ const formSchema = z.object({
   }),
   fatherName: z.string().min(2, "Le nom du père est requis"),
   motherName: z.string().min(2, "Le nom de la mère est requis"),
+  receptionMode: z.string().min(1, "Le mode de réception est requis"),
+  deliveryAddress: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
 
 export default function BirthDeclaration() {
   const [isLoading, setIsLoading] = useState(false);
+  const [birthCertificateFile, setBirthCertificateFile] = useState<File | null>(null);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -43,12 +48,24 @@ export default function BirthDeclaration() {
       gender: "MALE",
       fatherName: "",
       motherName: "",
+      receptionMode: "pickup",
+      deliveryAddress: "",
     },
   });
+
+  const handleBirthCertificateSelect = (file: File) => {
+    setBirthCertificateFile(file);
+  };
+
+  const handleBirthCertificateRemove = () => {
+    setBirthCertificateFile(null);
+  };
 
   const onSubmit = async (data: FormValues) => {
     try {
       setIsLoading(true);
+      
+      // Créer d'abord la déclaration
       const response = await fetch("/api/citizen/birth-declaration", {
         method: "POST",
         headers: {
@@ -62,8 +79,26 @@ export default function BirthDeclaration() {
       }
 
       const result = await response.json();
+
+      // Si un certificat de naissance a été sélectionné, l'uploader
+      if (birthCertificateFile) {
+        const formData = new FormData();
+        formData.append('file', birthCertificateFile);
+        formData.append('requestId', result.id);
+
+        const uploadResponse = await fetch('/api/citizen/document/upload-birth-certificate', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (!uploadResponse.ok) {
+          throw new Error("Erreur lors de l'upload du certificat de naissance");
+        }
+      }
+
       toast.success("Déclaration de naissance soumise avec succès");
       form.reset();
+      setBirthCertificateFile(null);
     } catch (error) {
       console.error("Erreur:", error);
       toast.error("Erreur lors de la soumission de la déclaration");
@@ -179,6 +214,31 @@ export default function BirthDeclaration() {
               <FormMessage />
             </FormItem>
           )}
+        />
+
+        <FormField
+          control={form.control}
+          name="receptionMode"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Mode de réception</FormLabel>
+              <FormControl>
+                <ReceptionModeSelect
+                  value={field.value}
+                  onChange={field.onChange}
+                  address={form.watch('deliveryAddress')}
+                  onAddressChange={(address) => form.setValue('deliveryAddress', address)}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <BirthCertificateUpload
+          onFileSelect={handleBirthCertificateSelect}
+          onFileRemove={handleBirthCertificateRemove}
+          selectedFile={birthCertificateFile || undefined}
         />
 
         <Button type="submit" className="w-full" disabled={isLoading}>

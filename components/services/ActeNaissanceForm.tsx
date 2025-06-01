@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 
 const formSchema = z.object({
   fullName: z.string().min(2, "Le nom complet est requis"),
@@ -29,6 +30,7 @@ type FormValues = z.infer<typeof formSchema>;
 
 export default function ActeNaissanceForm() {
   const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -60,6 +62,9 @@ export default function ActeNaissanceForm() {
       const result = await response.json();
       toast.success("Demande d'acte de naissance soumise avec succès");
       form.reset();
+      
+      // Rediriger vers la page de détails existante
+      router.push(`/citizen/document/${result.data.id}`);
     } catch (error) {
       console.error("Erreur:", error);
       toast.error("Erreur lors de la soumission de la demande");

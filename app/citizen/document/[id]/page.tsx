@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { ArrowLeft, Download, FileText, AlertCircle, CheckCircle } from "lucide-react";
+import { ArrowLeft, Download, FileText, AlertCircle, CheckCircle, CreditCard } from "lucide-react";
 import { toast } from "sonner";
 
 interface Document {
@@ -16,6 +16,12 @@ interface Document {
   url: string;
   createdAt: Date;
   updatedAt: Date;
+}
+
+interface Payment {
+  id: string;
+  status: string;
+  amount: number;
 }
 
 interface DocumentDetails {
@@ -33,6 +39,7 @@ interface DocumentDetails {
   createdAt: Date;
   updatedAt: Date;
   files: Document[];
+  payment?: Payment;
 }
 
 const DocumentDetailsPage = ({ params }: { params: { id: string } }) => {
@@ -49,6 +56,7 @@ const DocumentDetailsPage = ({ params }: { params: { id: string } }) => {
       const response = await fetch(`/api/citizen/documents/${params.id}`);
       const data = await response.json();
       if (data.success) {
+        console.log('Document data:', data.data);
         setDocument(data.data);
       } else {
         toast.error(data.message || 'Erreur lors de la récupération des détails');
@@ -63,18 +71,18 @@ const DocumentDetailsPage = ({ params }: { params: { id: string } }) => {
 
   const getStatusVariant = (status: string): "default" | "secondary" | "destructive" | "success" => {
     const variants: Record<string, "default" | "secondary" | "destructive" | "success"> = {
-      en_attente: "secondary",
-      approuvé: "success",
-      rejeté: "destructive"
+      PENDING: "secondary",
+      APPROVED: "success",
+      REJECTED: "destructive"
     };
     return variants[status] || "default";
   };
 
   const getStatusText = (status: string) => {
     const texts = {
-      en_attente: 'En attente',
-      approuvé: 'Approuvé',
-      rejeté: 'Rejeté'
+      PENDING: 'En attente',
+      APPROVED: 'Approuvé',
+      REJECTED: 'Rejeté'
     };
     return texts[status as keyof typeof texts] || status;
   };
@@ -88,6 +96,10 @@ const DocumentDetailsPage = ({ params }: { params: { id: string } }) => {
       default:
         return type;
     }
+  };
+
+  const handlePayment = () => {
+    router.push(`/citizen/payment?requestId=${params.id}&amount=5000`);
   };
 
   if (loading) {
@@ -154,6 +166,28 @@ const DocumentDetailsPage = ({ params }: { params: { id: string } }) => {
                   <p>{new Date(document.updatedAt).toLocaleDateString()}</p>
                 </div>
               </div>
+
+              <div className="mt-4 border-t pt-4">
+                {document.status === 'PENDING' && !document.payment ? (
+                  <div className="space-y-4">
+                    <p className="text-sm text-muted-foreground">
+                      Pour finaliser votre demande, veuillez procéder au paiement des frais.
+                    </p>
+                    <Button onClick={handlePayment} className="w-full">
+                      <CreditCard className="h-4 w-4 mr-2" />
+                      Procéder au paiement (5000 FCFA)
+                    </Button>
+                  </div>
+                ) : document.payment ? (
+                  <Alert>
+                    <AlertTitle>Statut du paiement</AlertTitle>
+                    <AlertDescription>
+                      <p>Montant payé : {document.payment.amount} FCFA</p>
+                      <p>Statut : {document.payment.status === 'PAID' ? 'Payé' : 'En attente'}</p>
+                    </AlertDescription>
+                  </Alert>
+                ) : null}
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -192,7 +226,7 @@ const DocumentDetailsPage = ({ params }: { params: { id: string } }) => {
           </CardContent>
         </Card>
 
-        {document.status === 'rejeté' && document.comment && (
+        {document.status === 'REJECTED' && document.comment && (
           <Card>
             <CardHeader>
               <CardTitle>Motif du rejet</CardTitle>
@@ -249,7 +283,7 @@ const DocumentDetailsPage = ({ params }: { params: { id: string } }) => {
           </CardContent>
         </Card>
 
-        {document.status === 'approuvé' && document.files.some(file => file.type === 'ACTE_NAISSANCE_FINAL') && (
+        {document.status === 'APPROVED' && document.files.some(file => file.type === 'ACTE_NAISSANCE_FINAL') && (
           <Card>
             <CardHeader>
               <CardTitle>Document final</CardTitle>
