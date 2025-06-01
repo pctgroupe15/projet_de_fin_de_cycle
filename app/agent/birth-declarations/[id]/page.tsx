@@ -2,11 +2,13 @@
 
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { Card, Typography, Descriptions, Tag, Button, Space, message } from 'antd';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { H2, H3, P } from "@/components/ui/typography";
 import { AgentLayout } from '@/components/layouts/agent-layout';
-import { CheckOutlined, CloseOutlined } from '@ant-design/icons';
-
-const { Title } = Typography;
+import { CheckCircle, XCircle } from 'lucide-react';
+import { toast } from "sonner";
 
 interface BirthDeclaration {
   id: string;
@@ -31,62 +33,67 @@ interface BirthDeclaration {
   } | null;
 }
 
-export default function BirthDeclarationDetailsPage() {
-  const { id } = useParams();
+const BirthDeclarationDetails = () => {
+  const params = useParams();
   const [declaration, setDeclaration] = useState<BirthDeclaration | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchDeclarationDetails();
-  }, [id]);
+  }, []);
 
   const fetchDeclarationDetails = async () => {
     try {
-      const response = await fetch(`/api/agent/birth-declarations/${id}`);
+      const response = await fetch(`/api/agent/birth-declarations/${params.id}`);
       const data = await response.json();
-      
       if (data.success) {
         setDeclaration(data.data);
-      } else {
-        message.error('Erreur lors de la récupération des détails');
       }
     } catch (error) {
-      console.error('Erreur:', error);
-      message.error('Une erreur est survenue');
+      console.error('Error fetching declaration details:', error);
+      toast.error("Erreur lors du chargement des détails");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleStatusUpdate = async (newStatus: string) => {
+  const handleApprove = async () => {
     try {
-      const response = await fetch(`/api/agent/birth-declarations/${id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ status: newStatus }),
+      const response = await fetch(`/api/agent/birth-declarations/${params.id}/approve`, {
+        method: 'POST',
       });
-
       const data = await response.json();
-      
       if (data.success) {
-        message.success('Statut mis à jour avec succès');
+        toast.success("Déclaration approuvée avec succès");
         fetchDeclarationDetails();
-      } else {
-        message.error('Erreur lors de la mise à jour du statut');
       }
     } catch (error) {
-      console.error('Erreur:', error);
-      message.error('Une erreur est survenue');
+      console.error('Error approving declaration:', error);
+      toast.error("Erreur lors de l'approbation");
+    }
+  };
+
+  const handleReject = async () => {
+    try {
+      const response = await fetch(`/api/agent/birth-declarations/${params.id}/reject`, {
+        method: 'POST',
+      });
+      const data = await response.json();
+      if (data.success) {
+        toast.success("Déclaration rejetée");
+        fetchDeclarationDetails();
+      }
+    } catch (error) {
+      console.error('Error rejecting declaration:', error);
+      toast.error("Erreur lors du rejet");
     }
   };
 
   if (loading) {
     return (
       <AgentLayout>
-        <div className="container mx-auto px-4 py-8">
-          <Card loading={true} />
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
         </div>
       </AgentLayout>
     );
@@ -95,10 +102,8 @@ export default function BirthDeclarationDetailsPage() {
   if (!declaration) {
     return (
       <AgentLayout>
-        <div className="container mx-auto px-4 py-8">
-          <Card>
-            <Title level={2}>Déclaration non trouvée</Title>
-          </Card>
+        <div className="p-6">
+          <H2>Déclaration non trouvée</H2>
         </div>
       </AgentLayout>
     );
@@ -106,91 +111,135 @@ export default function BirthDeclarationDetailsPage() {
 
   return (
     <AgentLayout>
-      <div className="container mx-auto px-4 py-8">
-        <Card>
-          <Title level={2}>Détails de la Déclaration de Naissance</Title>
-          
-          <Descriptions bordered column={2}>
-            <Descriptions.Item label="Statut">
-              <Tag color={
-                declaration.status === 'en_attente' ? 'orange' :
-                declaration.status === 'approuvé' ? 'green' :
-                declaration.status === 'rejeté' ? 'red' : 'default'
-              }>
-                {declaration.status.toUpperCase()}
-              </Tag>
-            </Descriptions.Item>
-            <Descriptions.Item label="Date de demande">
-              {new Date(declaration.createdAt).toLocaleDateString()}
-            </Descriptions.Item>
-            
-            <Descriptions.Item label="Nom de l'enfant">
-              {`${declaration.childFirstName} ${declaration.childLastName}`}
-            </Descriptions.Item>
-            <Descriptions.Item label="Date de naissance">
-              {new Date(declaration.birthDate).toLocaleDateString()}
-            </Descriptions.Item>
-            
-            <Descriptions.Item label="Lieu de naissance">
-              {declaration.birthPlace}
-            </Descriptions.Item>
-            <Descriptions.Item label="Genre">
-              {declaration.gender}
-            </Descriptions.Item>
+      <div className="p-6">
+        <div className="mb-6">
+          <H2>Détails de la déclaration</H2>
+          <P className="text-muted-foreground">
+            Numéro de suivi: {declaration.id}
+          </P>
+        </div>
 
-            <Descriptions.Item label="Demandeur">
-              {declaration.citizen.name}
-            </Descriptions.Item>
-            <Descriptions.Item label="Email">
-              {declaration.citizen.email}
-            </Descriptions.Item>
-            
-            <Descriptions.Item label="Paiement">
-              {declaration.payment ? (
-                <Tag color={declaration.payment.status === 'completed' ? 'green' : 'orange'}>
-                  {declaration.payment.status === 'completed' ? 'Payé' : 'En attente'} - {declaration.payment.amount}€
-                </Tag>
-              ) : (
-                <Tag color="red">Non payé</Tag>
-              )}
-            </Descriptions.Item>
-          </Descriptions>
+        <div className="grid gap-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Informations de l'enfant</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <P className="text-sm text-muted-foreground">Prénom</P>
+                    <P>{declaration.childFirstName}</P>
+                  </div>
+                  <div>
+                    <P className="text-sm text-muted-foreground">Nom</P>
+                    <P>{declaration.childLastName}</P>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <P className="text-sm text-muted-foreground">Date de naissance</P>
+                    <P>{new Date(declaration.birthDate).toLocaleDateString()}</P>
+                  </div>
+                  <div>
+                    <P className="text-sm text-muted-foreground">Lieu de naissance</P>
+                    <P>{declaration.birthPlace}</P>
+                  </div>
+                </div>
+                <div>
+                  <P className="text-sm text-muted-foreground">Genre</P>
+                  <P>{declaration.gender}</P>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
-          <div className="mt-8">
-            <Title level={4}>Documents</Title>
-            <div className="grid grid-cols-2 gap-4">
-              {declaration.documents.map((doc, index) => (
-                <Card key={index} size="small">
-                  <p className="font-semibold">{doc.type}</p>
-                  <a href={doc.url} target="_blank" rel="noopener noreferrer">
-                    Voir le document
-                  </a>
-                </Card>
-              ))}
-            </div>
-          </div>
+          <Card>
+            <CardHeader>
+              <CardTitle>Informations du citoyen</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4">
+                <div>
+                  <P className="text-sm text-muted-foreground">Nom complet</P>
+                  <P>{declaration.citizen.name}</P>
+                </div>
+                <div>
+                  <P className="text-sm text-muted-foreground">Email</P>
+                  <P>{declaration.citizen.email}</P>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
-          {declaration.status === 'en_attente' && (
-            <div className="mt-8 flex justify-end space-x-4">
-              <Button
-                type="primary"
-                danger
-                icon={<CloseOutlined />}
-                onClick={() => handleStatusUpdate('rejeté')}
-              >
-                Rejeter
-              </Button>
-              <Button
-                type="primary"
-                icon={<CheckOutlined />}
-                onClick={() => handleStatusUpdate('approuvé')}
-              >
-                Approuver
-              </Button>
-            </div>
+          <Card>
+            <CardHeader>
+              <CardTitle>Documents</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4">
+                {declaration.documents.map((doc, index) => (
+                  <div key={index} className="flex items-center justify-between">
+                    <div>
+                      <P className="text-sm text-muted-foreground">Type de document</P>
+                      <P>{doc.type}</P>
+                    </div>
+                    <Button variant="outline" asChild>
+                      <a href={doc.url} target="_blank" rel="noopener noreferrer">
+                        Voir le document
+                      </a>
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {declaration.payment && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Paiement</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-4">
+                  <div>
+                    <P className="text-sm text-muted-foreground">Statut</P>
+                    <Badge variant={declaration.payment.status === 'completed' ? 'success' : 'secondary'}>
+                      {declaration.payment.status === 'completed' ? 'Payé' : 'En attente'}
+                    </Badge>
+                  </div>
+                  <div>
+                    <P className="text-sm text-muted-foreground">Montant</P>
+                    <P>{declaration.payment.amount} €</P>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           )}
-        </Card>
+
+          <div className="flex gap-4">
+            <Button
+              onClick={handleApprove}
+              className="flex items-center gap-2"
+              disabled={declaration.status !== 'PENDING'}
+            >
+              <CheckCircle className="h-4 w-4" />
+              Approuver
+            </Button>
+            <Button
+              onClick={handleReject}
+              variant="destructive"
+              className="flex items-center gap-2"
+              disabled={declaration.status !== 'PENDING'}
+            >
+              <XCircle className="h-4 w-4" />
+              Rejeter
+            </Button>
+          </div>
+        </div>
       </div>
     </AgentLayout>
   );
-}
+};
+
+export default BirthDeclarationDetails;

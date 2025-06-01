@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import {
@@ -49,11 +49,7 @@ export default function DocumentsManagementPage() {
   const [rejectReason, setRejectReason] = useState("");
   const [documentToReject, setDocumentToReject] = useState<Document | null>(null);
 
-  useEffect(() => {
-    fetchDocuments();
-  }, []);
-
-  const fetchDocuments = async () => {
+  const fetchDocuments = useCallback(async () => {
     try {
       const response = await fetch("/api/admin/documents");
       if (!response.ok) throw new Error("Erreur lors de la récupération des documents");
@@ -68,9 +64,13 @@ export default function DocumentsManagementPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
-  const handleStatusChange = async (documentId: string, newStatus: string) => {
+  useEffect(() => {
+    fetchDocuments();
+  }, [fetchDocuments]);
+
+  const handleStatusChange = useCallback(async (documentId: string, newStatus: string) => {
     if (newStatus === "rejeté") {
       const doc = documents.find(d => d.id === documentId);
       if (doc) {
@@ -102,9 +102,9 @@ export default function DocumentsManagementPage() {
         variant: "destructive",
       });
     }
-  };
+  }, [documents, fetchDocuments]);
 
-  const handleRejectConfirm = async () => {
+  const handleRejectConfirm = useCallback(async () => {
     if (!documentToReject || !rejectReason.trim()) {
       toast({
         title: "Erreur",
@@ -142,18 +142,55 @@ export default function DocumentsManagementPage() {
         variant: "destructive",
       });
     }
-  };
+  }, [documentToReject, rejectReason, fetchDocuments]);
 
-  const handleRejectCancel = () => {
+  const handleRejectCancel = useCallback(() => {
     setIsRejectDialogOpen(false);
     setRejectReason("");
     setDocumentToReject(null);
-  };
+  }, []);
 
-  const handleViewDocument = (document: Document) => {
+  const handleViewDocument = useCallback((document: Document) => {
     setSelectedDocument(document);
     setIsDialogOpen(true);
-  };
+  }, []);
+
+  const tableContent = useMemo(() => (
+    documents.map((document) => (
+      <TableRow key={document.id}>
+        <TableCell>
+          {document.type === "BirthDeclaration" ? "Déclaration de naissance" : "Acte de naissance"}
+        </TableCell>
+        <TableCell>{document.citizenName}</TableCell>
+        <TableCell>
+          <Select
+            value={document.status}
+            onValueChange={(value) => handleStatusChange(document.id, value)}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="en_attente">En attente</SelectItem>
+              <SelectItem value="approuvé">Approuvé</SelectItem>
+              <SelectItem value="rejeté">Rejeté</SelectItem>
+            </SelectContent>
+          </Select>
+        </TableCell>
+        <TableCell>{new Date(document.createdAt).toLocaleDateString()}</TableCell>
+        <TableCell>{new Date(document.updatedAt).toLocaleDateString()}</TableCell>
+        <TableCell>
+          <Button
+            variant="outline"
+            onClick={() => handleViewDocument(document)}
+            aria-label={`Voir les détails du document de ${document.citizenName}`}
+          >
+            Voir détails
+          </Button>
+        </TableCell>
+      </TableRow>
+    ))
+  ), [documents, handleStatusChange, handleViewDocument]);
 
   if (isLoading) {
     return <div>Chargement...</div>;
@@ -177,43 +214,15 @@ export default function DocumentsManagementPage() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {documents.map((document) => (
-            <TableRow key={document.id}>
-              <TableCell>
-                {document.type === "BirthDeclaration" ? "Déclaration de naissance" : "Acte de naissance"}
-              </TableCell>
-              <TableCell>{document.citizenName}</TableCell>
-              <TableCell>
-                <Select
-                  value={document.status}
-                  onValueChange={(value) => handleStatusChange(document.id, value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="en_attente">En attente</SelectItem>
-                    <SelectItem value="approuvé">Approuvé</SelectItem>
-                    <SelectItem value="rejeté">Rejeté</SelectItem>
-                  </SelectContent>
-                </Select>
-              </TableCell>
-              <TableCell>{new Date(document.createdAt).toLocaleDateString()}</TableCell>
-              <TableCell>{new Date(document.updatedAt).toLocaleDateString()}</TableCell>
-              <TableCell>
-                <Button
-                  variant="outline"
-                  onClick={() => handleViewDocument(document)}
-                >
-                  Voir détails
-                </Button>
-              </TableCell>
-            </TableRow>
-          ))}
+          {tableContent}
         </TableBody>
       </Table>
 
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+      <Dialog 
+        open={isDialogOpen} 
+        onOpenChange={setIsDialogOpen}
+        aria-label="Détails du document"
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Détails du document</DialogTitle>
@@ -221,19 +230,19 @@ export default function DocumentsManagementPage() {
           {selectedDocument && (
             <div className="space-y-4">
               <div>
-                <Label>Type de document</Label>
-                <p>
+                <Label htmlFor="document-type">Type de document</Label>
+                <p id="document-type">
                   {selectedDocument.type === "BirthDeclaration"
                     ? "Déclaration de naissance"
                     : "Acte de naissance"}
                 </p>
               </div>
               <div>
-                <Label>Citoyen</Label>
-                <p>{selectedDocument.citizenName}</p>
+                <Label htmlFor="citizen-name">Citoyen</Label>
+                <p id="citizen-name">{selectedDocument.citizenName}</p>
               </div>
               <div>
-                <Label>Statut</Label>
+                <Label htmlFor="document-status">Statut</Label>
                 <Select
                   value={selectedDocument.status}
                   onValueChange={(value) => {
@@ -241,7 +250,7 @@ export default function DocumentsManagementPage() {
                     setIsDialogOpen(false);
                   }}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger id="document-status">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -264,33 +273,38 @@ export default function DocumentsManagementPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={isRejectDialogOpen} onOpenChange={setIsRejectDialogOpen}>
+      <Dialog 
+        open={isRejectDialogOpen} 
+        onOpenChange={setIsRejectDialogOpen}
+        aria-label="Rejeter le document"
+      >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Confirmer le rejet</DialogTitle>
+            <DialogTitle>Rejeter le document</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <p>Êtes-vous sûr de vouloir rejeter ce document ?</p>
             <div>
-              <Label htmlFor="rejectReason">Motif du rejet</Label>
+              <Label htmlFor="reject-reason">Motif du rejet</Label>
               <Input
-                id="rejectReason"
+                id="reject-reason"
                 value={rejectReason}
                 onChange={(e) => setRejectReason(e.target.value)}
-                placeholder="Saisissez le motif du rejet..."
-                className="mt-2"
+                placeholder="Entrez le motif du rejet"
               />
             </div>
             <div className="flex justify-end space-x-2">
-              <Button variant="outline" onClick={handleRejectCancel}>
+              <Button 
+                variant="outline" 
+                onClick={handleRejectCancel}
+                aria-label="Annuler le rejet"
+              >
                 Annuler
               </Button>
               <Button 
-                variant="destructive" 
                 onClick={handleRejectConfirm}
-                disabled={!rejectReason.trim()}
+                aria-label="Confirmer le rejet"
               >
-                Confirmer le rejet
+                Confirmer
               </Button>
             </div>
           </div>

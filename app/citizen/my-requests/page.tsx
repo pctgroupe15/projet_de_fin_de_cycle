@@ -61,7 +61,9 @@ export default function MyRequests() {
         {requests.length === 0 ? (
           <Card>
             <CardContent className="p-6 text-center">
-              <p className="text-gray-500">Vous n'avez pas encore de demandes</p>
+              <div className="text-center py-8">
+                <p className="text-muted-foreground">Vous n'avez pas encore de demandes</p>
+              </div>
             </CardContent>
           </Card>
         ) : (
@@ -76,18 +78,22 @@ export default function MyRequests() {
                     </p>
                   </div>
                   <Badge className={statusColors[request.status]}>
-                    {request.status}
+                    <p className="text-sm text-muted-foreground">
+                      {request.status === 'PENDING' ? 'En attente' :
+                       request.status === 'IN_PROGRESS' ? 'En cours' :
+                       request.status === 'COMPLETED' ? 'Complété' : 'Rejeté'}
+                    </p>
                   </Badge>
                 </div>
               </CardHeader>
               <CardContent>
-                <p className="text-gray-700">{request.description}</p>
+                <p className="text-foreground">{request.description}</p>
                 {request.documents && request.documents.length > 0 && (
                   <div className="mt-4">
                     <h4 className="text-sm font-semibold mb-2">Documents joints :</h4>
                     <ul className="list-disc list-inside">
                       {request.documents.map((doc, index) => (
-                        <li key={index} className="text-sm text-gray-600">{doc}</li>
+                        <li key={index} className="text-sm text-muted-foreground">{doc}</li>
                       ))}
                     </ul>
                   </div>

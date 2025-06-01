@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { 
   FileText, 
@@ -42,11 +42,7 @@ export default function AdminDashboard() {
   });
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    fetchAgentStats();
-  }, []);
-
-  const fetchAgentStats = async () => {
+  const fetchAgentStats = useCallback(async () => {
     try {
       const response = await fetch('/api/admin/stats');
       if (!response.ok) {
@@ -60,12 +56,119 @@ export default function AdminDashboard() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
-  const handleLogout = () => {
+  useEffect(() => {
+    fetchAgentStats();
+  }, [fetchAgentStats]);
+
+  const handleLogout = useCallback(() => {
     logout();
     router.push('/auth/login');
-  };
+  }, [router]);
+
+  const statsCards = useMemo(() => (
+    <>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Agents Actifs</CardTitle>
+          <Users className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">{isLoading ? "..." : agentStats.activeAgents}</div>
+          <p className="text-xs text-muted-foreground">
+            sur {isLoading ? "..." : agentStats.totalAgents} agents au total
+          </p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Nouveaux Agents</CardTitle>
+          <UserPlus className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">{isLoading ? "..." : agentStats.newAgents}</div>
+          <p className="text-xs text-muted-foreground">
+            dans les 30 derniers jours
+          </p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Agents Inactifs</CardTitle>
+          <UserMinus className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">{isLoading ? "..." : agentStats.inactiveAgents}</div>
+          <p className="text-xs text-muted-foreground">
+            {isLoading ? "..." : `${((agentStats.inactiveAgents / agentStats.totalAgents) * 100).toFixed(1)}% du total`}
+          </p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Taux d'Activité</CardTitle>
+          <CheckCircle className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">
+            {isLoading ? "..." : `${((agentStats.activeAgents / agentStats.totalAgents) * 100).toFixed(1)}%`}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            des agents sont actifs
+          </p>
+        </CardContent>
+      </Card>
+    </>
+  ), [isLoading, agentStats]);
+
+  const quickActions = useMemo(() => (
+    <div className="grid grid-cols-1 gap-4">
+      <Button 
+        className="w-full" 
+        variant="outline" 
+        asChild
+      >
+        <Link href="/admin/dashboard/users">
+          <UserCog className="mr-2 h-4 w-4" />
+          Gérer les Utilisateurs
+        </Link>
+      </Button>
+      <Button 
+        className="w-full" 
+        variant="outline" 
+        asChild
+      >
+        <Link href="/admin/dashboard/documents">
+          <FileText className="mr-2 h-4 w-4" />
+          Gérer les Documents
+        </Link>
+      </Button>
+      <Button 
+        className="w-full" 
+        variant="outline" 
+        asChild
+      >
+        <Link href="/admin/dashboard/agents">
+          <Users className="mr-2 h-4 w-4" />
+          Gérer les Agents
+        </Link>
+      </Button>
+      <Button 
+        className="w-full" 
+        variant="outline" 
+        asChild
+      >
+        <Link href="/admin/dashboard/statistics">
+          <BarChart3 className="mr-2 h-4 w-4" />
+          Voir les Statistiques
+        </Link>
+      </Button>
+    </div>
+  ), []);
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -117,7 +220,11 @@ export default function AdminDashboard() {
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between space-y-2 md:space-y-0">
             <h2 className="text-3xl font-bold tracking-tight">Console d'Administration</h2>
             <div className="flex items-center space-x-2">
-              <Button variant="outline" onClick={handleLogout}>
+              <Button 
+                variant="outline" 
+                onClick={handleLogout}
+                aria-label="Se déconnecter"
+              >
                 <LogOut className="mr-2 h-4 w-4" />
                 Déconnexion
               </Button>
@@ -125,59 +232,7 @@ export default function AdminDashboard() {
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Agents Actifs</CardTitle>
-                <Users className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{isLoading ? "..." : agentStats.activeAgents}</div>
-                <p className="text-xs text-muted-foreground">
-                  sur {isLoading ? "..." : agentStats.totalAgents} agents au total
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Nouveaux Agents</CardTitle>
-                <UserPlus className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{isLoading ? "..." : agentStats.newAgents}</div>
-                <p className="text-xs text-muted-foreground">
-                  dans les 30 derniers jours
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Agents Inactifs</CardTitle>
-                <UserMinus className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{isLoading ? "..." : agentStats.inactiveAgents}</div>
-                <p className="text-xs text-muted-foreground">
-                  {isLoading ? "..." : `${((agentStats.inactiveAgents / agentStats.totalAgents) * 100).toFixed(1)}% du total`}
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Taux d'Activité</CardTitle>
-                <CheckCircle className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {isLoading ? "..." : `${((agentStats.activeAgents / agentStats.totalAgents) * 100).toFixed(1)}%`}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  des agents sont actifs
-                </p>
-              </CardContent>
-            </Card>
+            {statsCards}
           </div>
           
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
@@ -206,24 +261,7 @@ export default function AdminDashboard() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 gap-4">
-                  <Button className="w-full" variant="outline" onClick={() => router.push('/admin/dashboard/users')}>
-                    <UserCog className="mr-2 h-4 w-4" />
-                    Gérer les Utilisateurs
-                  </Button>
-                  <Button className="w-full" variant="outline" onClick={() => router.push('/admin/dashboard/documents')}>
-                    <FileText className="mr-2 h-4 w-4" />
-                    Gérer les Documents
-                  </Button>
-                  <Button className="w-full" variant="outline" onClick={() => router.push('/admin/dashboard/agents')}>
-                    <Users className="mr-2 h-4 w-4" />
-                    Gérer les Agents
-                  </Button>
-                  <Button className="w-full" variant="outline" onClick={() => router.push('/admin/dashboard/statistics')}>
-                    <BarChart3 className="mr-2 h-4 w-4" />
-                    Voir les Statistiques
-                  </Button>
-                </div>
+                {quickActions}
               </CardContent>
             </Card>
           </div>

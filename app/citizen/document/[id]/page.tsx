@@ -1,12 +1,14 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import { Card, Typography, Descriptions, Tag, Button, Space, message, Alert } from 'antd';
-import { ArrowLeftOutlined, DownloadOutlined } from '@ant-design/icons';
 import { useRouter } from 'next/navigation';
 import { CitizenLayout } from '@/components/layouts/citizen-layout';
-
-const { Title } = Typography;
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { ArrowLeft, Download, FileText, AlertCircle, CheckCircle } from "lucide-react";
+import { toast } from "sonner";
 
 interface Document {
   id: string;
@@ -49,23 +51,23 @@ const DocumentDetailsPage = ({ params }: { params: { id: string } }) => {
       if (data.success) {
         setDocument(data.data);
       } else {
-        message.error(data.message || 'Erreur lors de la récupération des détails');
+        toast.error(data.message || 'Erreur lors de la récupération des détails');
       }
     } catch (error) {
       console.error('Error fetching document details:', error);
-      message.error('Erreur lors de la récupération des détails');
+      toast.error('Erreur lors de la récupération des détails');
     } finally {
       setLoading(false);
     }
   };
 
-  const getStatusColor = (status: string) => {
-    const colors = {
-      en_attente: 'orange',
-      approuvé: 'green',
-      rejeté: 'red'
+  const getStatusVariant = (status: string): "default" | "secondary" | "destructive" | "success" => {
+    const variants: Record<string, "default" | "secondary" | "destructive" | "success"> = {
+      en_attente: "secondary",
+      approuvé: "success",
+      rejeté: "destructive"
     };
-    return colors[status as keyof typeof colors] || 'default';
+    return variants[status] || "default";
   };
 
   const getStatusText = (status: string) => {
@@ -89,134 +91,191 @@ const DocumentDetailsPage = ({ params }: { params: { id: string } }) => {
   };
 
   if (loading) {
-    return <div>Chargement...</div>;
+    return (
+      <CitizenLayout>
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        </div>
+      </CitizenLayout>
+    );
   }
 
   if (!document) {
-    return <div>Document non trouvé</div>;
+    return (
+      <CitizenLayout>
+        <div className="p-6">
+          <h2 className="text-2xl font-bold">Document non trouvé</h2>
+        </div>
+      </CitizenLayout>
+    );
   }
 
   return (
     <CitizenLayout>
-      <div style={{ padding: '24px' }}>
-        <Space direction="vertical" size="large" style={{ width: '100%' }}>
-          <Button 
-            icon={<ArrowLeftOutlined />} 
-            onClick={() => router.push('/citizen/documents')}
-          >
-            Retour à la liste
-          </Button>
+      <div className="p-6 space-y-6">
+        <Button 
+          variant="ghost"
+          className="mb-4"
+          onClick={() => router.push('/citizen/documents')}
+        >
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Retour à la liste
+        </Button>
 
-          <Card title="Détails de la demande">
-            <Descriptions bordered>
-              <Descriptions.Item label="Type de document" span={3}>
-                {getDocumentTypeLabel(document.documentType)}
-              </Descriptions.Item>
-              <Descriptions.Item label="Numéro de suivi" span={3}>
-                {document.trackingNumber}
-              </Descriptions.Item>
-              <Descriptions.Item label="Statut">
-                <Tag color={getStatusColor(document.status)}>
-                  {getStatusText(document.status)}
-                </Tag>
-              </Descriptions.Item>
-              <Descriptions.Item label="Date de la demande">
-                {new Date(document.createdAt).toLocaleDateString()}
-              </Descriptions.Item>
-              <Descriptions.Item label="Dernière mise à jour">
-                {new Date(document.updatedAt).toLocaleDateString()}
-              </Descriptions.Item>
-            </Descriptions>
+        <Card>
+          <CardHeader>
+            <CardTitle>Détails de la demande</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-muted-foreground">Type de document</p>
+                  <p>{getDocumentTypeLabel(document.documentType)}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Numéro de suivi</p>
+                  <p>{document.trackingNumber}</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <p className="text-sm text-muted-foreground">Statut</p>
+                  <Badge variant={getStatusVariant(document.status)}>
+                    {getStatusText(document.status)}
+                  </Badge>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Date de la demande</p>
+                  <p>{new Date(document.createdAt).toLocaleDateString()}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Dernière mise à jour</p>
+                  <p>{new Date(document.updatedAt).toLocaleDateString()}</p>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Informations du document</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4">
+              <div>
+                <p className="text-sm text-muted-foreground">Nom complet</p>
+                <p>{document.fullName}</p>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-muted-foreground">Date de naissance</p>
+                  <p>{new Date(document.birthDate).toLocaleDateString()}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Lieu de naissance</p>
+                  <p>{document.birthPlace}</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-muted-foreground">Nom du père</p>
+                  <p>{document.fatherFullName || 'Non renseigné'}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Nom de la mère</p>
+                  <p>{document.motherFullName || 'Non renseigné'}</p>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {document.status === 'rejeté' && document.comment && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Motif du rejet</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Votre demande a été rejetée</AlertTitle>
+                <AlertDescription>{document.comment}</AlertDescription>
+              </Alert>
+            </CardContent>
           </Card>
+        )}
 
-          <Card title="Informations du document">
-            <Descriptions bordered>
-              <Descriptions.Item label="Nom complet" span={3}>
-                {document.fullName}
-              </Descriptions.Item>
-              <Descriptions.Item label="Date de naissance">
-                {new Date(document.birthDate).toLocaleDateString()}
-              </Descriptions.Item>
-              <Descriptions.Item label="Lieu de naissance" span={2}>
-                {document.birthPlace}
-              </Descriptions.Item>
-              <Descriptions.Item label="Nom du père">
-                {document.fatherFullName || 'Non renseigné'}
-              </Descriptions.Item>
-              <Descriptions.Item label="Nom de la mère">
-                {document.motherFullName || 'Non renseigné'}
-              </Descriptions.Item>
-            </Descriptions>
-          </Card>
-
-          {document.status === 'rejeté' && document.comment && (
-            <Card title="Motif du rejet">
-              <Alert
-                message="Votre demande a été rejetée"
-                description={document.comment}
-                type="error"
-                showIcon
-              />
-            </Card>
-          )}
-
-          <Card title="Documents fournis">
-            <Space direction="vertical" style={{ width: '100%' }}>
+        <Card>
+          <CardHeader>
+            <CardTitle>Documents fournis</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
               {document.files.map((file) => (
-                <Card key={file.id} size="small" style={{ marginBottom: '16px' }}>
-                  <Space align="start">
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>
-                        {file.type === 'DEMANDEUR_ID' ? 'Pièce d\'identité du demandeur' : 
-                         file.type === 'EXISTING_ACTE' ? 'Acte existant' : 
-                         file.type === 'ACTE_NAISSANCE_FINAL' ? 'Acte de naissance final' : 
-                         file.type}
-                      </div>
-                      <Space>
-                        <a href={file.url} target="_blank" rel="noopener noreferrer">
-                          <Button icon={<DownloadOutlined />}>Télécharger</Button>
-                        </a>
-                        {(file.type === 'DEMANDEUR_ID' || file.type === 'EXISTING_ACTE') && (
-                          <Button onClick={() => window.open(file.url, '_blank')}>
-                            Voir le document
+                <Card key={file.id}>
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium mb-2">
+                          {file.type === 'DEMANDEUR_ID' ? 'Pièce d\'identité du demandeur' : 
+                           file.type === 'EXISTING_ACTE' ? 'Acte existant' : 
+                           file.type === 'ACTE_NAISSANCE_FINAL' ? 'Acte de naissance final' : 
+                           file.type}
+                        </p>
+                        <div className="flex gap-2">
+                          <Button variant="outline" size="sm" asChild>
+                            <a href={file.url} target="_blank" rel="noopener noreferrer">
+                              <Download className="h-4 w-4 mr-2" />
+                              Télécharger
+                            </a>
                           </Button>
-                        )}
-                      </Space>
+                          {(file.type === 'DEMANDEUR_ID' || file.type === 'EXISTING_ACTE') && (
+                            <Button variant="outline" size="sm" asChild>
+                              <a href={file.url} target="_blank" rel="noopener noreferrer">
+                                <FileText className="h-4 w-4 mr-2" />
+                                Voir le document
+                              </a>
+                            </Button>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                  </Space>
+                  </CardContent>
                 </Card>
               ))}
-            </Space>
-          </Card>
+            </div>
+          </CardContent>
+        </Card>
 
-          {document.status === 'approuvé' && document.files.some(file => file.type === 'ACTE_NAISSANCE_FINAL') && (
-            <Card title="Document final">
-              <Alert
-                message="Votre document est prêt"
-                description={
-                  <div>
-                    <p>Votre document a été validé et est disponible en téléchargement.</p>
-                    <Button 
-                      type="primary" 
-                      icon={<DownloadOutlined />}
-                      style={{ marginTop: '16px' }}
-                      onClick={() => {
-                        const finalDocument = document.files.find(file => file.type === 'ACTE_NAISSANCE_FINAL');
-                        if (finalDocument) {
-                          window.open(finalDocument.url, '_blank');
-                        }
-                      }}
-                    >
-                      Télécharger le document final
-                    </Button>
-                  </div>
-                }
-                type="success"
-                showIcon
-              />
-            </Card>
-          )}
-        </Space>
+        {document.status === 'approuvé' && document.files.some(file => file.type === 'ACTE_NAISSANCE_FINAL') && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Document final</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Alert>
+                <CheckCircle className="h-4 w-4" />
+                <AlertTitle>Votre document est prêt</AlertTitle>
+                <AlertDescription>
+                  <p className="mb-4">Votre document a été validé et est disponible en téléchargement.</p>
+                  <Button
+                    onClick={() => {
+                      const finalDocument = document.files.find(file => file.type === 'ACTE_NAISSANCE_FINAL');
+                      if (finalDocument) {
+                        window.open(finalDocument.url, '_blank');
+                      }
+                    }}
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Télécharger le document final
+                  </Button>
+                </AlertDescription>
+              </Alert>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </CitizenLayout>
   );

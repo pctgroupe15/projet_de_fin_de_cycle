@@ -1,11 +1,13 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import { Card, Typography, Descriptions, Tag, Timeline, Button, Space, message } from 'antd';
-import { ArrowLeftOutlined, CheckOutlined, CloseOutlined } from '@ant-design/icons';
-import { useRouter } from 'next/navigation';
-
-const { Title } = Typography;
+import { useRouter, useParams } from 'next/navigation';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { H2, H3, P } from "@/components/ui/typography";
+import { ArrowLeft, CheckCircle, XCircle } from 'lucide-react';
+import { toast } from "sonner";
 
 interface RequestDetails {
   id: string;
@@ -35,15 +37,15 @@ interface RequestDetails {
   };
 }
 
-const RequestDetails = ({ params }: { params: { id: string } }) => {
+const RequestDetailsPage = () => {
+  const router = useRouter();
+  const params = useParams();
   const [request, setRequest] = useState<RequestDetails | null>(null);
   const [loading, setLoading] = useState(true);
-  const [updating, setUpdating] = useState(false);
-  const router = useRouter();
 
   useEffect(() => {
     fetchRequestDetails();
-  }, [params.id]);
+  }, []);
 
   const fetchRequestDetails = async () => {
     try {
@@ -54,253 +56,226 @@ const RequestDetails = ({ params }: { params: { id: string } }) => {
       }
     } catch (error) {
       console.error('Error fetching request details:', error);
+      toast.error("Erreur lors du chargement des détails");
     } finally {
       setLoading(false);
     }
   };
 
-  const updateRequestStatus = async (newStatus: string) => {
+  const handleApprove = async () => {
     try {
-      setUpdating(true);
-      const response = await fetch(`/api/agent/requests/${params.id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ status: newStatus }),
+      const response = await fetch(`/api/agent/requests/${params.id}/approve`, {
+        method: 'POST',
       });
-
       const data = await response.json();
       if (data.success) {
-        message.success('Statut mis à jour avec succès');
+        toast.success("Demande approuvée avec succès");
         fetchRequestDetails();
-      } else {
-        message.error(data.message || 'Erreur lors de la mise à jour du statut');
       }
     } catch (error) {
-      console.error('Error updating request status:', error);
-      message.error('Erreur lors de la mise à jour du statut');
-    } finally {
-      setUpdating(false);
+      console.error('Error approving request:', error);
+      toast.error("Erreur lors de l'approbation");
     }
   };
 
-  const getStatusColor = (status: string) => {
-    const colors = {
-      en_attente: 'orange',
-      en_cours: 'blue',
-      complété: 'green',
-      rejeté: 'red'
-    };
-    return colors[status as keyof typeof colors] || 'default';
-  };
-
-  const getStatusText = (status: string) => {
-    const texts = {
-      en_attente: 'En attente',
-      en_cours: 'En cours',
-      complété: 'Complété',
-      rejeté: 'Rejeté'
-    };
-    return texts[status as keyof typeof texts] || status;
-  };
-
-  const getTimelineItems = () => {
-    if (!request) return [];
-    
-    const items = [
-      {
-        color: 'green',
-        children: `Demande créée le ${new Date(request.createdAt).toLocaleDateString()}`
+  const handleReject = async () => {
+    try {
+      const response = await fetch(`/api/agent/requests/${params.id}/reject`, {
+        method: 'POST',
+      });
+      const data = await response.json();
+      if (data.success) {
+        toast.success("Demande rejetée");
+        fetchRequestDetails();
       }
-    ];
-
-    if (request.status === 'en_cours') {
-      items.push({
-        color: 'blue',
-        children: `En cours de traitement`
-      });
-    } else if (request.status === 'complété') {
-      items.push({
-        color: 'green',
-        children: `Demande complétée le ${new Date(request.updatedAt).toLocaleDateString()}`
-      });
-    } else if (request.status === 'rejeté') {
-      items.push({
-        color: 'red',
-        children: `Demande rejetée le ${new Date(request.updatedAt).toLocaleDateString()}`
-      });
+    } catch (error) {
+      console.error('Error rejecting request:', error);
+      toast.error("Erreur lors du rejet");
     }
-
-    return items;
   };
 
   if (loading) {
-    return <div>Chargement...</div>;
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
   }
 
   if (!request) {
-    return <div>Demande non trouvée</div>;
+    return (
+      <div className="p-6">
+        <H2>Demande non trouvée</H2>
+      </div>
+    );
   }
 
   return (
-    <div style={{ padding: '24px' }}>
-      <Space direction="vertical" size="large" style={{ width: '100%' }}>
-        <Space>
-          <Button
-            icon={<ArrowLeftOutlined />}
-            onClick={() => router.back()}
-          >
-            Retour
-          </Button>
-          <Title level={2}>Détails de la demande</Title>
-        </Space>
+    <div className="p-6">
+      <div className="mb-6">
+        <Button
+          variant="ghost"
+          className="mb-4"
+          onClick={() => router.back()}
+        >
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Retour
+        </Button>
+        <H2>Détails de la demande</H2>
+        <P className="text-muted-foreground">
+          Numéro de suivi: {request.trackingNumber}
+        </P>
+      </div>
+
+      <div className="grid gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Informations de l'enfant</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4">
+              <div>
+                <P className="text-sm text-muted-foreground">Nom complet</P>
+                <P>{request.childName}</P>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <P className="text-sm text-muted-foreground">Date de naissance</P>
+                  <P>{new Date(request.birthDate).toLocaleDateString()}</P>
+                </div>
+                <div>
+                  <P className="text-sm text-muted-foreground">Heure de naissance</P>
+                  <P>{request.birthTime}</P>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <P className="text-sm text-muted-foreground">Lieu de naissance</P>
+                  <P>{request.birthPlace}</P>
+                </div>
+                <div>
+                  <P className="text-sm text-muted-foreground">Genre</P>
+                  <P>{request.gender}</P>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         <Card>
-          <Descriptions title="Informations de base" bordered>
-            <Descriptions.Item label="Numéro de suivi">
-              {request.trackingNumber}
-            </Descriptions.Item>
-            <Descriptions.Item label="Statut">
-              <Tag color={getStatusColor(request.status)}>
-                {getStatusText(request.status)}
-              </Tag>
-            </Descriptions.Item>
-            <Descriptions.Item label="Date de création">
-              {new Date(request.createdAt).toLocaleDateString()}
-            </Descriptions.Item>
-          </Descriptions>
+          <CardHeader>
+            <CardTitle>Informations des parents</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4">
+              <div>
+                <P className="text-sm text-muted-foreground">Nom du père</P>
+                <P>{request.fatherName}</P>
+              </div>
+              <div>
+                <P className="text-sm text-muted-foreground">Nom de la mère</P>
+                <P>{request.motherName}</P>
+              </div>
+            </div>
+          </CardContent>
         </Card>
 
-        <Card title="Informations du demandeur">
-          <Descriptions bordered>
-            <Descriptions.Item label="Nom">
-              {request.citizen.name}
-            </Descriptions.Item>
-            <Descriptions.Item label="Email">
-              {request.citizen.email}
-            </Descriptions.Item>
-          </Descriptions>
+        <Card>
+          <CardHeader>
+            <CardTitle>Informations du demandeur</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4">
+              <div>
+                <P className="text-sm text-muted-foreground">Nom complet</P>
+                <P>{request.citizen.name}</P>
+              </div>
+              <div>
+                <P className="text-sm text-muted-foreground">Email</P>
+                <P>{request.citizen.email}</P>
+              </div>
+            </div>
+          </CardContent>
         </Card>
 
-        <Card title="Informations de l'enfant">
-          <Descriptions bordered>
-            <Descriptions.Item label="Nom complet">
-              {request.childName}
-            </Descriptions.Item>
-            <Descriptions.Item label="Date de naissance">
-              {new Date(request.birthDate).toLocaleDateString()}
-            </Descriptions.Item>
-            <Descriptions.Item label="Heure de naissance">
-              {request.birthTime}
-            </Descriptions.Item>
-            <Descriptions.Item label="Lieu de naissance">
-              {request.birthPlace}
-            </Descriptions.Item>
-            <Descriptions.Item label="Genre">
-              {request.gender === 'MALE' ? 'Masculin' : 'Féminin'}
-            </Descriptions.Item>
-          </Descriptions>
-        </Card>
-
-        <Card title="Informations des parents">
-          <Descriptions bordered>
-            <Descriptions.Item label="Nom du père">
-              {request.fatherName}
-            </Descriptions.Item>
-            <Descriptions.Item label="Nom de la mère">
-              {request.motherName}
-            </Descriptions.Item>
-          </Descriptions>
-        </Card>
-
-        <Card title="Documents">
-          <Descriptions bordered>
-            <Descriptions.Item label="Acte de naissance">
-              <Button
-                type="link"
-                onClick={() => window.open(request.documents.birthCertificate, '_blank')}
-              >
-                Voir le document
-              </Button>
-            </Descriptions.Item>
-            {request.documents.familyBook && (
-              <Descriptions.Item label="Livre de famille">
-                <Button
-                  type="link"
-                  onClick={() => window.open(request.documents.familyBook!, '_blank')}
-                >
-                  Voir le document
+        <Card>
+          <CardHeader>
+            <CardTitle>Documents</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <P className="text-sm text-muted-foreground">Acte de naissance</P>
+                </div>
+                <Button variant="outline" asChild>
+                  <a href={request.documents.birthCertificate} target="_blank" rel="noopener noreferrer">
+                    Voir le document
+                  </a>
                 </Button>
-              </Descriptions.Item>
-            )}
-          </Descriptions>
+              </div>
+              {request.documents.familyBook && (
+                <div className="flex items-center justify-between">
+                  <div>
+                    <P className="text-sm text-muted-foreground">Livre de famille</P>
+                  </div>
+                  <Button variant="outline" asChild>
+                    <a href={request.documents.familyBook} target="_blank" rel="noopener noreferrer">
+                      Voir le document
+                    </a>
+                  </Button>
+                </div>
+              )}
+            </div>
+          </CardContent>
         </Card>
 
-        <Card title="Paiement">
-          <Descriptions bordered>
-            <Descriptions.Item label="Montant">
-              {request.payment.amount} FCFA
-            </Descriptions.Item>
-            <Descriptions.Item label="Méthode">
-              {request.payment.method}
-            </Descriptions.Item>
-            <Descriptions.Item label="Statut">
-              <Tag color={request.payment.status === 'PAID' ? 'green' : 'red'}>
-                {request.payment.status === 'PAID' ? 'Payé' : 'Non payé'}
-              </Tag>
-            </Descriptions.Item>
-          </Descriptions>
+        <Card>
+          <CardHeader>
+            <CardTitle>Paiement</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4">
+              <div>
+                <P className="text-sm text-muted-foreground">Statut</P>
+                <Badge variant={request.payment.status === 'completed' ? 'success' : 'secondary'}>
+                  {request.payment.status === 'completed' ? 'Payé' : 'En attente'}
+                </Badge>
+              </div>
+              <div>
+                <P className="text-sm text-muted-foreground">Montant</P>
+                <P>{request.payment.amount} €</P>
+              </div>
+              <div>
+                <P className="text-sm text-muted-foreground">Méthode de paiement</P>
+                <P>{request.payment.method}</P>
+              </div>
+            </div>
+          </CardContent>
         </Card>
 
-        <Card title="Suivi de la demande">
-          <Timeline items={getTimelineItems()} />
-        </Card>
-
-        {request.status === 'en_attente' && (
-          <Space>
-            <Button
-              type="primary"
-              icon={<CheckOutlined />}
-              onClick={() => updateRequestStatus('en_cours')}
-              loading={updating}
-            >
-              Prendre en charge
-            </Button>
-            <Button
-              danger
-              icon={<CloseOutlined />}
-              onClick={() => updateRequestStatus('rejeté')}
-              loading={updating}
-            >
-              Rejeter
-            </Button>
-          </Space>
-        )}
-
-        {request.status === 'en_cours' && (
-          <Space>
-            <Button
-              type="primary"
-              icon={<CheckOutlined />}
-              onClick={() => updateRequestStatus('complété')}
-              loading={updating}
-            >
-              Valider
-            </Button>
-            <Button
-              danger
-              icon={<CloseOutlined />}
-              onClick={() => updateRequestStatus('rejeté')}
-              loading={updating}
-            >
-              Rejeter
-            </Button>
-          </Space>
-        )}
-      </Space>
+        <div className="flex gap-4">
+          <Button
+            onClick={handleApprove}
+            className="flex items-center gap-2"
+            disabled={request.status !== 'PENDING'}
+          >
+            <CheckCircle className="h-4 w-4" />
+            Approuver
+          </Button>
+          <Button
+            onClick={handleReject}
+            variant="destructive"
+            className="flex items-center gap-2"
+            disabled={request.status !== 'PENDING'}
+          >
+            <XCircle className="h-4 w-4" />
+            Rejeter
+          </Button>
+        </div>
+      </div>
     </div>
   );
 };
 
-export default RequestDetails;
+export default RequestDetailsPage;

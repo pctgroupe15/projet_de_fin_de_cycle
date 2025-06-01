@@ -1,11 +1,24 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
-import { Table, Tag, Card, Typography, Space, Button } from 'antd';
-import { EyeOutlined } from '@ant-design/icons';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-
-const { Title } = Typography;
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { H2, Muted } from "@/components/ui/typography";
+import { Badge } from "@/components/ui/badge";
+import { Eye } from "lucide-react";
+import { toast } from "sonner";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { useCachedFetch } from '@/hooks/use-cached-fetch';
+import { ErrorBoundary } from '@/components/ui/error-boundary';
+import { Loading } from '@/components/ui/loading';
 
 interface BirthDeclaration {
   id: string;
@@ -16,40 +29,35 @@ interface BirthDeclaration {
   createdAt: string;
 }
 
+type BadgeVariant = "default" | "secondary" | "destructive" | "outline" | "success";
+
 const CitizenRequests = () => {
-  const [requests, setRequests] = useState<BirthDeclaration[]>([]);
-  const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const { data: requestsData, error, isLoading, refresh } = useCachedFetch<{ success: boolean; data: BirthDeclaration[]; message?: string }>(
+    '/api/citizen/requests',
+    {},
+    { ttl: 2 * 60 * 1000 } // Cache de 2 minutes
+  );
+
+  const requests = requestsData?.data || [];
 
   useEffect(() => {
-    fetchRequests();
+    if (error) {
+      toast.error('Erreur lors de la récupération des demandes');
+    }
+  }, [error]);
+
+  const getStatusVariant = useCallback((status: string): BadgeVariant => {
+    const variants: Record<string, BadgeVariant> = {
+      PENDING: 'secondary',
+      IN_PROGRESS: 'default',
+      COMPLETED: 'success',
+      REJECTED: 'destructive'
+    };
+    return variants[status] || 'default';
   }, []);
 
-  const fetchRequests = async () => {
-    try {
-      const response = await fetch('/api/citizen/requests');
-      const data = await response.json();
-      if (data.success) {
-        setRequests(data.data);
-      }
-    } catch (error) {
-      console.error('Error fetching requests:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    const colors = {
-      PENDING: 'orange',
-      IN_PROGRESS: 'blue',
-      COMPLETED: 'green',
-      REJECTED: 'red'
-    };
-    return colors[status as keyof typeof colors] || 'default';
-  };
-
-  const getStatusText = (status: string) => {
+  const getStatusText = useCallback((status: string) => {
     const texts = {
       PENDING: 'En attente',
       IN_PROGRESS: 'En cours',
@@ -57,68 +65,81 @@ const CitizenRequests = () => {
       REJECTED: 'Rejeté'
     };
     return texts[status as keyof typeof texts] || status;
-  };
+  }, []);
 
-  const columns = [
-    {
-      title: 'Numéro de suivi',
-      dataIndex: 'trackingNumber',
-      key: 'trackingNumber',
-    },
-    {
-      title: 'Nom de l\'enfant',
-      dataIndex: 'childName',
-      key: 'childName',
-    },
-    {
-      title: 'Date de naissance',
-      dataIndex: 'birthDate',
-      key: 'birthDate',
-      render: (date: string) => new Date(date).toLocaleDateString(),
-    },
-    {
-      title: 'Statut',
-      dataIndex: 'status',
-      key: 'status',
-      render: (status: string) => (
-        <Tag color={getStatusColor(status)}>
-          {getStatusText(status)}
-        </Tag>
-      ),
-    },
-    {
-      title: 'Date de demande',
-      dataIndex: 'createdAt',
-      key: 'createdAt',
-      render: (date: string) => new Date(date).toLocaleDateString(),
-    },
-    {
-      title: 'Actions',
-      key: 'actions',
-      render: (_: any, record: BirthDeclaration) => (
-        <Button
-          type="primary"
-          icon={<EyeOutlined />}
-          onClick={() => router.push(`/citizen/requests/${record.id}`)}
-        >
-          Voir détails
-        </Button>
-      ),
-    },
-  ];
+  const handleViewDetails = useCallback((requestId: string) => {
+    router.push(`/citizen/requests/${requestId}`);
+  }, [router]);
+
+  const tableContent = useMemo(() => {
+    if (requests.length === 0) {
+      return (
+        <TableRow>
+          <TableCell colSpan={6} className="text-center">
+            Aucune demande trouvée
+          </TableCell>
+        </TableRow>
+      );
+    }
+
+    return requests.map((request) => (
+      <TableRow key={request.id}>
+        <TableCell>{request.trackingNumber}</TableCell>
+        <TableCell>{request.childName}</TableCell>
+        <TableCell>{new Date(request.birthDate).toLocaleDateString()}</TableCell>
+        <TableCell>
+          <Badge variant={getStatusVariant(request.status)}>
+            {getStatusText(request.status)}
+          </Badge>
+        </TableCell>
+        <TableCell>{new Date(request.createdAt).toLocaleDateString()}</TableCell>
+        <TableCell className="text-right">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => handleViewDetails(request.id)}
+            className="flex items-center gap-2"
+          >
+            <Eye className="h-4 w-4" />
+            Voir détails
+          </Button>
+        </TableCell>
+      </TableRow>
+    ));
+  }, [requests, getStatusVariant, getStatusText, handleViewDetails]);
+
+  if (isLoading) {
+    return <Loading fullScreen />;
+  }
 
   return (
-    <div style={{ padding: '24px' }}>
-      <Title level={2}>Mes demandes</Title>
-      <Card>
-        <Table
-          columns={columns}
-          dataSource={requests}
-          loading={loading}
-          rowKey="id"
-        />
-      </Card>
-    </div>
+    <ErrorBoundary>
+      <div className="p-6">
+        <div className="mb-6">
+          <H2>Mes demandes</H2>
+          <Muted>Consultez l'état de vos demandes de documents</Muted>
+        </div>
+        <Card>
+          <CardContent className="p-6">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Numéro de suivi</TableHead>
+                  <TableHead>Nom de l'enfant</TableHead>
+                  <TableHead>Date de naissance</TableHead>
+                  <TableHead>Statut</TableHead>
+                  <TableHead>Date de demande</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {tableContent}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      </div>
+    </ErrorBoundary>
   );
 };
 
