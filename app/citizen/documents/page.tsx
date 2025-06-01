@@ -113,10 +113,12 @@ export default function CitizenDocuments() {
     switch (status) {
       case 'PENDING':
         return 'En attente de validation';
-      case 'APPROVED':
+      case 'COMPLETED':
         return 'Document validé et disponible';
       case 'REJECTED':
         return 'Demande rejetée';
+      case 'IN_PROGRESS':
+        return 'En cours de traitement';
       default:
         return status;
     }

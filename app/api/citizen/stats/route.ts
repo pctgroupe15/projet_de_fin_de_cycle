@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { prisma } from '@/lib/prisma';
 import { authOptions } from '@/lib/auth';
+import { RequestStatus } from '@prisma/client';
 
 export async function GET() {
   try {
@@ -47,9 +48,9 @@ export async function GET() {
     // Calculer les statistiques
     const totalRequests = allRequests.length;
     const lastMonthRequests = allRequests.filter(req => new Date(req.createdAt) >= lastMonth).length;
-    const pendingRequests = allRequests.filter(req => req.status === 'en_attente').length;
-    const validatedRequests = allRequests.filter(req => req.status === 'approuvé').length;
-    const rejectedRequests = allRequests.filter(req => req.status === 'rejeté').length;
+    const pendingRequests = allRequests.filter(req => req.status === RequestStatus.PENDING).length;
+    const validatedRequests = allRequests.filter(req => req.status === RequestStatus.COMPLETED).length;
+    const rejectedRequests = allRequests.filter(req => req.status === RequestStatus.REJECTED).length;
 
     // Récupérer les demandes récentes (5 dernières)
     const recentRequests = allRequests

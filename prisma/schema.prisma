@@ -10,6 +10,13 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum RequestStatus {
+  PENDING
+  COMPLETED
+  REJECTED
+  IN_PROGRESS
+}
+
 model User {
   id             String    @id @default(auto()) @map("_id") @db.ObjectId
   email          String    @unique
@@ -47,7 +54,7 @@ model BirthDeclaration {
   fatherLastName  String
   motherFirstName String
   motherLastName  String
-  status          String   @default("en_attente")
+  status          RequestStatus @default(PENDING)
   rejectReason    String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -143,7 +150,7 @@ model BirthCertificate {
   fatherFullName  String?
   motherFullName  String?
   acteNumber      String?
-  status          String   @default("PENDING")
+  status          RequestStatus @default(PENDING)
   rejectReason    String?
   trackingNumber  String   @unique
   comment         String?

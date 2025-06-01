@@ -17,39 +17,35 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 
 const formSchema = z.object({
-  childName: z.string().min(2, "Le nom de l'enfant est requis"),
+  fullName: z.string().min(2, "Le nom complet est requis"),
   birthDate: z.string().min(1, "La date de naissance est requise"),
-  birthTime: z.string().min(1, "L'heure de naissance est requise"),
   birthPlace: z.string().min(2, "Le lieu de naissance est requis"),
-  gender: z.enum(["MALE", "FEMALE"], {
-    required_error: "Le genre est requis",
-  }),
   fatherName: z.string().min(2, "Le nom du père est requis"),
   motherName: z.string().min(2, "Le nom de la mère est requis"),
+  reason: z.string().min(10, "La raison de la demande est requise"),
 });
 
 type FormValues = z.infer<typeof formSchema>;
 
-export default function BirthDeclaration() {
+export default function ActeNaissanceForm() {
   const [isLoading, setIsLoading] = useState(false);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      childName: "",
+      fullName: "",
       birthDate: "",
-      birthTime: "",
       birthPlace: "",
-      gender: "MALE",
       fatherName: "",
       motherName: "",
+      reason: "",
     },
   });
 
   const onSubmit = async (data: FormValues) => {
     try {
       setIsLoading(true);
-      const response = await fetch("/api/citizen/birth-declaration", {
+      const response = await fetch("/api/citizen/birth-certificate", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -58,15 +54,15 @@ export default function BirthDeclaration() {
       });
 
       if (!response.ok) {
-        throw new Error("Erreur lors de la soumission de la déclaration");
+        throw new Error("Erreur lors de la soumission de la demande");
       }
 
       const result = await response.json();
-      toast.success("Déclaration de naissance soumise avec succès");
+      toast.success("Demande d'acte de naissance soumise avec succès");
       form.reset();
     } catch (error) {
       console.error("Erreur:", error);
-      toast.error("Erreur lors de la soumission de la déclaration");
+      toast.error("Erreur lors de la soumission de la demande");
     } finally {
       setIsLoading(false);
     }
@@ -77,47 +73,31 @@ export default function BirthDeclaration() {
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
         <FormField
           control={form.control}
-          name="childName"
+          name="fullName"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Nom de l'enfant</FormLabel>
+              <FormLabel>Nom complet</FormLabel>
               <FormControl>
-                <Input placeholder="Entrez le nom de l'enfant" {...field} />
+                <Input placeholder="Entrez votre nom complet" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
 
-        <div className="grid grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="birthDate"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Date de naissance</FormLabel>
-                <FormControl>
-                  <Input type="date" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="birthTime"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Heure de naissance</FormLabel>
-                <FormControl>
-                  <Input type="time" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
+        <FormField
+          control={form.control}
+          name="birthDate"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Date de naissance</FormLabel>
+              <FormControl>
+                <Input type="date" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
 
         <FormField
           control={form.control}
@@ -127,26 +107,6 @@ export default function BirthDeclaration() {
               <FormLabel>Lieu de naissance</FormLabel>
               <FormControl>
                 <Input placeholder="Entrez le lieu de naissance" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="gender"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Genre</FormLabel>
-              <FormControl>
-                <select
-                  className="w-full p-2 border rounded-md"
-                  {...field}
-                >
-                  <option value="MALE">Masculin</option>
-                  <option value="FEMALE">Féminin</option>
-                </select>
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -181,10 +141,24 @@ export default function BirthDeclaration() {
           )}
         />
 
+        <FormField
+          control={form.control}
+          name="reason"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Raison de la demande</FormLabel>
+              <FormControl>
+                <Input placeholder="Entrez la raison de votre demande" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
         <Button type="submit" className="w-full" disabled={isLoading}>
-          {isLoading ? "Soumission en cours..." : "Soumettre la déclaration"}
+          {isLoading ? "Soumission en cours..." : "Soumettre la demande"}
         </Button>
       </form>
     </Form>
   );
-}
+} 

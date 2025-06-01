@@ -81,12 +81,14 @@ export default function CitizenDashboard() {
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'en_attente':
+      case 'PENDING':
         return <Badge variant="secondary">En attente</Badge>;
-      case 'valide':
+      case 'COMPLETED':
         return <Badge variant="success">Validé</Badge>;
-      case 'rejete':
+      case 'REJECTED':
         return <Badge variant="destructive">Rejeté</Badge>;
+      case 'IN_PROGRESS':
+        return <Badge variant="default">En cours</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
@@ -107,12 +109,14 @@ export default function CitizenDashboard() {
 
   const getStatusLabel = (status: string) => {
     switch (status) {
-      case 'en_attente':
+      case 'PENDING':
         return 'En attente de validation';
-      case 'valide':
+      case 'COMPLETED':
         return 'Document validé et disponible';
-      case 'rejete':
+      case 'REJECTED':
         return 'Demande rejetée';
+      case 'IN_PROGRESS':
+        return 'En cours de traitement';
       default:
         return status;
     }

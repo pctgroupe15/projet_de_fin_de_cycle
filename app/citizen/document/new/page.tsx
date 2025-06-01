@@ -77,31 +77,36 @@ const documentTypes = [
     id: "residence_certificate", 
     label: "Certificat de résidence", 
     description: "Obtenir un certificat de résidence",
-    icon: FileText
+    icon: FileText,
+    component: null
   },
   { 
     id: "marriage_certificate", 
     label: "Certificat de mariage", 
     description: "Obtenir un certificat de mariage",
-    icon: FileText
+    icon: FileText,
+    component: null
   },
   { 
     id: "criminal_record", 
     label: "Extrait de casier judiciaire", 
     description: "Obtenir un extrait de casier judiciaire",
-    icon: FileText
+    icon: FileText,
+    component: null
   },
   { 
     id: "id_card", 
     label: "Carte d'identité", 
     description: "Demander une carte d'identité",
-    icon: FileText
+    icon: FileText,
+    component: null
   },
   { 
     id: "passport", 
     label: "Passeport", 
     description: "Demander un passeport",
-    icon: FileText
+    icon: FileText,
+    component: null
   }
 ];
 
