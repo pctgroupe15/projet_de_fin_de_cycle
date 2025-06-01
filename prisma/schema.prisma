@@ -65,6 +65,8 @@ model Document {
   url              String
   birthCertificateId String? @db.ObjectId
   birthCertificate  BirthCertificate? @relation(fields: [birthCertificateId], references: [id])
+  documentRequestId String?  @db.ObjectId
+  documentRequest   DocumentRequest? @relation(fields: [documentRequestId], references: [id])
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 }
@@ -105,6 +107,7 @@ model Citizen {
   birthDeclarations BirthDeclaration[]
   birthCertificates BirthCertificate[]
   notifications  Notification[]
+  documentRequests DocumentRequest[]
 }
 
 model Agent {
@@ -152,4 +155,43 @@ model BirthCertificate {
   updatedAt       DateTime @updatedAt
   agent           Agent?   @relation(fields: [agentId], references: [id])
   agentId         String?  @db.ObjectId
+}
+
+enum DeliveryMode {
+  PICKUP
+  DELIVERY
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+model DocumentRequest {
+  id          String      @id @default(auto()) @map("_id") @db.ObjectId
+  type        String
+  status      String
+  citizenId   String      @db.ObjectId
+  citizen     Citizen     @relation(fields: [citizenId], references: [id])
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  documents   Document[]  // Relation avec le modèle Document existant
+  deliveryMode DeliveryMode
+  deliveryAddress String?
+  payment     DocumentRequestPayment?
+  amount      Float
+  trackingNumber String?
+}
+
+model DocumentRequestPayment {
+  id            String        @id @default(auto()) @map("_id") @db.ObjectId
+  requestId     String        @db.ObjectId @unique
+  request       DocumentRequest @relation(fields: [requestId], references: [id])
+  amount        Float
+  currency      String        @default("XOF")
+  status        PaymentStatus
+  stripePaymentId String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
 }

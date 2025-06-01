@@ -1,10 +1,12 @@
 import Image from 'next/image';
 import Link from 'next/link';
-import { ChevronRight, FileText, User, ShieldCheck } from 'lucide-react';
+import { ChevronRight, FileText, User, ShieldCheck, InfoIcon, HelpCircle, Phone, Mail, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { MainNav } from '@/components/main-nav';
 import { ThemeToggle } from '@/components/theme-toggle';
 import dynamic from 'next/dynamic';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
 const ServicesSection = dynamic(() => import('@/components/sections/ServicesSection'), {
   loading: () => (
@@ -184,45 +186,87 @@ export default function Home() {
           </div>
         </section>
         
-        {/* FAQ */}
-        <section className="py-16 bg-muted">
-          <div className="container px-4 md:px-6">
-            <div className="text-center space-y-4 mb-12">
-              <h2 className="text-3xl font-bold tracking-tighter">Questions Fréquentes</h2>
-              <p className="text-muted-foreground max-w-[600px] mx-auto">
-                Trouvez des réponses aux questions les plus courantes.
-              </p>
+        {/* Informations Utiles Section */}
+        <section className="w-full py-12 bg-gray-50">
+          <div className="container mx-auto px-4">
+            <h2 className="text-3xl font-bold text-center mb-8">Informations Utiles</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <InfoIcon className="h-5 w-5" />
+                    Horaires d'ouverture
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p>Lundi - Vendredi: 8h - 16h</p>
+                  <p>Samedi: 8h - 12h</p>
+                  <p>Dimanche: Fermé</p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Phone className="h-5 w-5" />
+                    Contact
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p>Téléphone: +225 0123456789</p>
+                  <p>Email: contact@admin-service.ci</p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <MapPin className="h-5 w-5" />
+                    Adresse
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p>123 Avenue de l'Administration</p>
+                  <p>Abidjan, Côte d'Ivoire</p>
+                </CardContent>
+              </Card>
             </div>
-            
-            <div className="grid gap-6 max-w-3xl mx-auto">
-              {[
-                {
-                  question: "Combien de temps faut-il pour traiter ma demande ?",
-                  answer: "Le délai de traitement dépend du type de document demandé, mais la plupart des demandes sont traitées dans un délai de 2 à 5 jours ouvrables."
-                },
-                {
-                  question: "Comment puis-je payer pour mes documents ?",
-                  answer: "Nous acceptons les paiements par mobile money et carte bancaire. Tous les paiements sont sécurisés et vous recevrez une confirmation immédiate."
-                },
-                {
-                  question: "Puis-je suivre l'état de ma demande ?",
-                  answer: "Oui, vous pouvez suivre l'état de votre demande en temps réel depuis votre espace personnel sur notre plateforme."
-                },
-                {
-                  question: "Les documents fournis sont-ils officiels ?",
-                  answer: "Oui, tous les documents fournis sont officiels et légalement reconnus par les autorités compétentes."
-                },
-                {
-                  question: "Comment puis-je contacter le service client ?",
-                  answer: "Notre service client est disponible par email, téléphone ou chat en ligne du lundi au vendredi de 8h à 18h."
-                }
-              ].map((faq, i) => (
-                <div key={i} className="rounded-lg border bg-card p-6 shadow-sm animation-slideUp" style={{ animationDelay: `${i * 100}ms` }}>
-                  <h3 className="text-lg font-semibold mb-2">{faq.question}</h3>
-                  <p className="text-muted-foreground">{faq.answer}</p>
-                </div>
-              ))}
-            </div>
+          </div>
+        </section>
+        
+        {/* FAQ Section */}
+        <section className="w-full py-12">
+          <div className="container mx-auto px-4">
+            <h2 className="text-3xl font-bold text-center mb-8">Questions Fréquentes</h2>
+            <Accordion type="single" collapsible className="max-w-3xl mx-auto">
+              <AccordionItem value="item-1">
+                <AccordionTrigger>Comment faire une demande de document ?</AccordionTrigger>
+                <AccordionContent>
+                  Connectez-vous à votre compte, cliquez sur "Nouvelle demande", sélectionnez le type de document souhaité et suivez les instructions.
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem value="item-2">
+                <AccordionTrigger>Quels sont les délais de traitement ?</AccordionTrigger>
+                <AccordionContent>
+                  Les délais varient selon le type de document. En général, le traitement prend entre 24h et 72h.
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem value="item-3">
+                <AccordionTrigger>Comment payer ma demande ?</AccordionTrigger>
+                <AccordionContent>
+                  Le paiement se fait en ligne via carte bancaire ou mobile money. Vous recevrez un reçu de paiement par email.
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem value="item-4">
+                <AccordionTrigger>Comment recevoir mon document ?</AccordionTrigger>
+                <AccordionContent>
+                  Vous pouvez choisir entre le retrait en agence ou la livraison à domicile lors de la soumission de votre demande.
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
           </div>
         </section>
       </main>
