@@ -70,39 +70,40 @@ export default function DocumentsManagementPage() {
     fetchDocuments();
   }, [fetchDocuments]);
 
-  const handleStatusChange = useCallback(async (documentId: string, newStatus: string) => {
-    if (newStatus === "rejeté") {
-      const doc = documents.find(d => d.id === documentId);
-      if (doc) {
-        setDocumentToReject(doc);
-        setIsRejectDialogOpen(true);
-      }
-      return;
-    }
-
+  const handleStatusChange = async (documentId: string, newStatus: string) => {
     try {
       const response = await fetch(`/api/admin/documents/${documentId}/status`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: newStatus }),
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          status: newStatus === "REJECTED" ? "REJECTED" :
+                 newStatus === "COMPLETED" ? "COMPLETED" :
+                 newStatus === "PENDING" ? "PENDING" : newStatus,
+          rejectReason: newStatus === "REJECTED" ? rejectReason : null
+        }),
       });
 
-      if (!response.ok) throw new Error("Erreur lors de la modification du statut");
+      if (!response.ok) {
+        throw new Error('Erreur lors de la mise à jour du statut');
+      }
 
       toast({
-        title: "Succès",
-        description: "Statut modifié avec succès",
+        title: newStatus === "REJECTED" ? "Document rejeté" : "Statut mis à jour",
+        description: newStatus === "REJECTED" ? "Document rejeté avec succès" : "Statut mis à jour avec succès",
       });
 
       fetchDocuments();
     } catch (error) {
+      console.error('Erreur:', error);
       toast({
         title: "Erreur",
-        description: "Impossible de modifier le statut",
+        description: "Une erreur est survenue lors de la mise à jour du statut",
         variant: "destructive",
       });
     }
-  }, [documents, fetchDocuments]);
+  };
 
   const handleRejectConfirm = useCallback(async () => {
     if (!documentToReject || !rejectReason.trim()) {
@@ -171,9 +172,9 @@ export default function DocumentsManagementPage() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="en_attente">En attente</SelectItem>
-              <SelectItem value="approuvé">Approuvé</SelectItem>
-              <SelectItem value="rejeté">Rejeté</SelectItem>
+              <SelectItem value="PENDING">En attente</SelectItem>
+              <SelectItem value="COMPLETED">Approuvé</SelectItem>
+              <SelectItem value="REJECTED">Rejeté</SelectItem>
             </SelectContent>
           </Select>
         </TableCell>
@@ -254,9 +255,9 @@ export default function DocumentsManagementPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="en_attente">En attente</SelectItem>
-                    <SelectItem value="approuvé">Approuvé</SelectItem>
-                    <SelectItem value="rejeté">Rejeté</SelectItem>
+                    <SelectItem value="PENDING">En attente</SelectItem>
+                    <SelectItem value="COMPLETED">Approuvé</SelectItem>
+                    <SelectItem value="REJECTED">Rejeté</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

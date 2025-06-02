@@ -141,3 +141,29 @@ export async function PUT(request: Request) {
     );
   }
 }
+
+const getStatusLabel = (status: string) => {
+  switch (status) {
+    case 'PENDING':
+      return 'En traitement';
+    case 'COMPLETED':
+      return 'Validé';
+    case 'REJECTED':
+      return 'Rejeté';
+    default:
+      return status;
+  }
+};
+
+const getStatusValue = (status: string) => {
+  switch (status) {
+    case 'Validé':
+      return 'COMPLETED';
+    case 'Rejeté':
+      return 'REJECTED';
+    case 'En traitement':
+      return 'PENDING';
+    default:
+      return status;
+  }
+};

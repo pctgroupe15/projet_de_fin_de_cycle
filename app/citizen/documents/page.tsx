@@ -109,16 +109,27 @@ export default function CitizenDocuments() {
     }
   };
 
+  const getStatusBadgeVariant = (status: string) => {
+    switch (status) {
+      case 'PENDING':
+        return "outline";
+      case 'COMPLETED':
+        return "success";
+      case 'REJECTED':
+        return "destructive";
+      default:
+        return "outline";
+    }
+  };
+
   const getStatusLabel = (status: string) => {
     switch (status) {
       case 'PENDING':
-        return 'En attente de validation';
+        return "En attente";
       case 'COMPLETED':
-        return 'Document validé et disponible';
+        return "Validé";
       case 'REJECTED':
-        return 'Demande rejetée';
-      case 'IN_PROGRESS':
-        return 'En cours de traitement';
+        return "Rejeté";
       default:
         return status;
     }
@@ -262,8 +273,8 @@ export default function CitizenDocuments() {
                           {getStatusBadge(doc.status)}
                         </div>
                         <div>
-                          <Badge variant="outline">
-                            {doc.status === 'APPROVED' ? 'Normal' : 'Urgent'}
+                          <Badge variant={getStatusBadgeVariant(doc.status)}>
+                            {getStatusLabel(doc.status)}
                           </Badge>
                         </div>
                         <div className="flex justify-end space-x-2">

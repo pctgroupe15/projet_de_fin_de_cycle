@@ -17,81 +17,65 @@ import {
 } from "@/components/ui/table";
 import { toast } from "sonner";
 
-interface BirthDeclaration {
+interface BirthCertificate {
   id: string;
-  childFirstName: string;
-  childLastName: string;
+  fullName: string;
   birthDate: Date;
+  birthPlace: string;
+  acteNumber: string;
   status: string;
+  trackingNumber: string;
   createdAt: string;
   citizen: {
     name: string;
     email: string;
   };
-  documents: {
+  files: {
     type: string;
     url: string;
   }[];
+  payment: {
+    status: string;
+    amount: number;
+  } | null;
 }
 
-export default function BirthDeclarationsPage() {
-  const [declarations, setDeclarations] = useState<BirthDeclaration[]>([]);
+export default function BirthCertificatesPage() {
+  const [certificates, setCertificates] = useState<BirthCertificate[]>([]);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
-    fetchDeclarations();
-    
-    // Rafraîchir les données toutes les 30 secondes
-    const interval = setInterval(() => {
-      fetchDeclarations();
-    }, 30000);
-
-    // Nettoyer l'intervalle lors du démontage du composant
-    return () => clearInterval(interval);
+    fetchCertificates();
   }, []);
 
-  const fetchDeclarations = async () => {
+  const fetchCertificates = async () => {
     try {
-      const response = await fetch('/api/agent/birth-declarations');
+      const response = await fetch('/api/agent/birth-certificates');
       const data = await response.json();
-      
       if (data.success) {
-        setDeclarations(data.data);
+        setCertificates(data.data);
       } else {
-        toast.error('Erreur lors de la récupération des déclarations');
+        toast.error(data.message || 'Erreur lors du chargement des actes');
       }
     } catch (error) {
-      console.error('Erreur:', error);
-      toast.error('Erreur lors de la récupération des déclarations');
+      console.error('Error fetching certificates:', error);
+      toast.error('Erreur lors du chargement des actes');
     } finally {
       setLoading(false);
     }
   };
 
-  const getStatusBadgeVariant = (status: string) => {
+  const getStatusVariant = (status: string) => {
     switch (status) {
-      case 'PENDING':
-        return "outline";
       case 'COMPLETED':
-        return "success";
-      case 'REJECTED':
-        return "destructive";
-      default:
-        return "outline";
-    }
-  };
-
-  const getStatusLabel = (status: string) => {
-    switch (status) {
+        return 'success';
       case 'PENDING':
-        return "En attente";
-      case 'COMPLETED':
-        return "Validé";
+        return 'secondary';
       case 'REJECTED':
-        return "Rejeté";
+        return 'destructive';
       default:
-        return status;
+        return 'secondary';
     }
   };
 
@@ -110,46 +94,46 @@ export default function BirthDeclarationsPage() {
       <div className="container mx-auto px-4 py-8">
         <Card>
           <CardHeader>
-            <CardTitle>Déclarations de Naissance</CardTitle>
+            <CardTitle>Actes de Naissance</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="rounded-md border">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Nom de l'enfant</TableHead>
+                    <TableHead>Nom complet</TableHead>
                     <TableHead>Date de naissance</TableHead>
+                    <TableHead>Numéro d'acte</TableHead>
                     <TableHead>Demandeur</TableHead>
                     <TableHead>Statut</TableHead>
-                    <TableHead>Date de demande</TableHead>
+                    <TableHead>Date de création</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {declarations.map((declaration) => (
-                    <TableRow key={declaration.id}>
+                  {certificates.map((certificate) => (
+                    <TableRow key={certificate.id}>
+                      <TableCell>{certificate.fullName}</TableCell>
                       <TableCell>
-                        {`${declaration.childFirstName} ${declaration.childLastName}`}
+                        {new Date(certificate.birthDate).toLocaleDateString()}
+                      </TableCell>
+                      <TableCell>{certificate.acteNumber}</TableCell>
+                      <TableCell>
+                        {`${certificate.citizen.name} (${certificate.citizen.email})`}
                       </TableCell>
                       <TableCell>
-                        {new Date(declaration.birthDate).toLocaleDateString()}
-                      </TableCell>
-                      <TableCell>
-                        {`${declaration.citizen.name} (${declaration.citizen.email})`}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={getStatusBadgeVariant(declaration.status)}>
-                          {getStatusLabel(declaration.status)}
+                        <Badge variant={getStatusVariant(certificate.status)}>
+                          {certificate.status}
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        {new Date(declaration.createdAt).toLocaleDateString()}
+                        {new Date(certificate.createdAt).toLocaleDateString()}
                       </TableCell>
                       <TableCell className="text-right">
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => router.push(`/agent/birth-declarations/${declaration.id}`)}
+                          onClick={() => router.push(`/agent/documents/${certificate.id}`)}
                         >
                           <Eye className="h-4 w-4 mr-2" />
                           Voir détails
@@ -165,4 +149,4 @@ export default function BirthDeclarationsPage() {
       </div>
     </AgentLayout>
   );
-}
+} 

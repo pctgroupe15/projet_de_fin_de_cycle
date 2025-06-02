@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { RequestStatus } from '@prisma/client';
 
 export async function GET() {
   try {
@@ -15,35 +16,23 @@ export async function GET() {
 
     // Récupérer toutes les demandes
     const [birthCertificates, birthDeclarations] = await Promise.all([
-      prisma.birthCertificate.findMany({
-        where: {
-          status: {
-            not: 'DELETED'
-          }
-        }
-      }),
-      prisma.birthDeclaration.findMany({
-        where: {
-          status: {
-            not: 'DELETED'
-          }
-        }
-      })
+      prisma.birthCertificate.findMany(),
+      prisma.birthDeclaration.findMany()
     ]);
 
     // Calculer les statistiques pour chaque type
     const birthCertificatesStats = {
       total: birthCertificates.length,
-      pending: birthCertificates.filter(d => d.status === 'en_attente').length,
-      approved: birthCertificates.filter(d => d.status === 'approuvé').length,
-      rejected: birthCertificates.filter(d => d.status === 'rejeté').length
+      pending: birthCertificates.filter(d => d.status === RequestStatus.PENDING).length,
+      approved: birthCertificates.filter(d => d.status === RequestStatus.COMPLETED).length,
+      rejected: birthCertificates.filter(d => d.status === RequestStatus.REJECTED).length
     };
 
     const birthDeclarationsStats = {
       total: birthDeclarations.length,
-      pending: birthDeclarations.filter(d => d.status === 'en_attente').length,
-      approved: birthDeclarations.filter(d => d.status === 'approuvé').length,
-      rejected: birthDeclarations.filter(d => d.status === 'rejeté').length
+      pending: birthDeclarations.filter(d => d.status === RequestStatus.PENDING).length,
+      approved: birthDeclarations.filter(d => d.status === RequestStatus.COMPLETED).length,
+      rejected: birthDeclarations.filter(d => d.status === RequestStatus.REJECTED).length
     };
 
     // Combiner toutes les demandes pour les statistiques générales
@@ -60,9 +49,9 @@ export async function GET() {
 
     const requestsStats = {
       total: allRequests.length,
-      pending: allRequests.filter(req => req.status === 'en_attente').length,
-      approved: allRequests.filter(req => req.status === 'approuvé').length,
-      rejected: allRequests.filter(req => req.status === 'rejeté').length
+      pending: allRequests.filter(req => req.status === RequestStatus.PENDING).length,
+      approved: allRequests.filter(req => req.status === RequestStatus.COMPLETED).length,
+      rejected: allRequests.filter(req => req.status === RequestStatus.REJECTED).length
     };
 
     return NextResponse.json({

@@ -89,7 +89,7 @@ export default function AgentDashboardPage() {
       title: 'Actes de Naissance',
       icon: <FileCheck className="h-5 w-5" />,
       stats: stats.birthCertificates,
-      path: '/agent/documents',
+      path: '/agent/birth-certificates',
       color: 'green',
       showApprovalStats: true
     },

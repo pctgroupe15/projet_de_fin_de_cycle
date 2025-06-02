@@ -85,6 +85,32 @@ export default function AllRequestsPage() {
     }
   };
 
+  const getStatusBadgeVariant = (status: string) => {
+    switch (status) {
+      case 'PENDING':
+        return "outline";
+      case 'COMPLETED':
+        return "success";
+      case 'REJECTED':
+        return "destructive";
+      default:
+        return "outline";
+    }
+  };
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'PENDING':
+        return "En attente";
+      case 'COMPLETED':
+        return "Validé";
+      case 'REJECTED':
+        return "Rejeté";
+      default:
+        return status;
+    }
+  };
+
   const getDocumentTypeLabel = (type: string) => {
     switch (type) {
       case 'birth_certificate':

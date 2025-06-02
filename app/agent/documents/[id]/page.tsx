@@ -106,18 +106,20 @@ const DocumentDetails = ({ params }: { params: { id: string } }) => {
 
   const getStatusVariant = useCallback((status: string): "default" | "secondary" | "destructive" | "success" => {
     const variants: Record<string, "default" | "secondary" | "destructive" | "success"> = {
-      en_attente: "secondary",
-      approuvé: "success",
-      rejeté: "destructive"
+      PENDING: "secondary",
+      COMPLETED: "success",
+      REJECTED: "destructive",
+      IN_PROGRESS: "default"
     };
     return variants[status] || "default";
   }, []);
 
   const getStatusText = useCallback((status: string) => {
     const texts = {
-      en_attente: 'En attente',
-      approuvé: 'Approuvé',
-      rejeté: 'Rejeté'
+      PENDING: 'En attente',
+      COMPLETED: 'Approuvé',
+      REJECTED: 'Rejeté',
+      IN_PROGRESS: 'En cours'
     };
     return texts[status as keyof typeof texts] || status;
   }, []);
@@ -129,10 +131,10 @@ const DocumentDetails = ({ params }: { params: { id: string } }) => {
   }, []);
 
   const handleOk = useCallback(async () => {
-    const newStatus = request?.status === 'en_attente' ? 'approuvé' : 'rejeté';
+    const newStatus = request?.status === 'PENDING' ? 'COMPLETED' : 'REJECTED';
     setUpdating(true);
 
-    if (newStatus === 'approuvé') {
+    if (newStatus === 'COMPLETED') {
       if (!selectedFile) {
         toast.warning('Veuillez joindre le document final pour valider la demande.');
         setUpdating(false);
@@ -169,8 +171,8 @@ const DocumentDetails = ({ params }: { params: { id: string } }) => {
     }
   }, [request?.status, selectedFile, params.id, updateRequestStatus]);
 
-  const showModal = useCallback((statusToUpdate: 'approuvé' | 'rejeté') => {
-    if (statusToUpdate === 'approuvé') {
+  const showModal = useCallback((statusToUpdate: 'COMPLETED' | 'REJECTED') => {
+    if (statusToUpdate === 'COMPLETED') {
       setSelectedFile(null);
     }
     setIsModalOpen(true);
@@ -349,17 +351,17 @@ const DocumentDetails = ({ params }: { params: { id: string } }) => {
           </CardContent>
         </Card>
 
-        {request.status === 'en_attente' && (
+        {request.status === 'PENDING' && (
           <div className="flex gap-4">
             <Button
-              onClick={() => showModal('approuvé')}
+              onClick={() => showModal('COMPLETED')}
               className="flex items-center gap-2"
             >
               <CheckCircle className="h-4 w-4" />
               Approuver
             </Button>
             <Button
-              onClick={() => showModal('rejeté')}
+              onClick={() => showModal('REJECTED')}
               variant="destructive"
               className="flex items-center gap-2"
             >
@@ -377,7 +379,7 @@ const DocumentDetails = ({ params }: { params: { id: string } }) => {
           <DialogContent>
             <DialogHeader>
               <DialogTitle>
-                {request.status === 'en_attente' ? 'Approuver la demande' : 'Rejeter la demande'}
+                {request.status === 'PENDING' ? 'Approuver la demande' : 'Rejeter la demande'}
               </DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
@@ -393,7 +395,7 @@ const DocumentDetails = ({ params }: { params: { id: string } }) => {
                   className="mt-2"
                 />
               </div>
-              {request.status === 'en_attente' && (
+              {request.status === 'PENDING' && (
                 <div>
                   <label htmlFor="final-document" className="text-sm font-medium">
                     Document final
@@ -420,9 +422,9 @@ const DocumentDetails = ({ params }: { params: { id: string } }) => {
               <Button 
                 onClick={handleOk} 
                 disabled={updating}
-                aria-label={request.status === 'en_attente' ? "Approuver la demande" : "Rejeter la demande"}
+                aria-label={request.status === 'PENDING' ? "Approuver la demande" : "Rejeter la demande"}
               >
-                {updating ? 'Traitement...' : request.status === 'en_attente' ? 'Approuver' : 'Rejeter'}
+                {updating ? 'Traitement...' : request.status === 'PENDING' ? 'Approuver' : 'Rejeter'}
               </Button>
             </DialogFooter>
           </DialogContent>
