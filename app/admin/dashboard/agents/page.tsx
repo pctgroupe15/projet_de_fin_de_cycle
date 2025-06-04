@@ -1,6 +1,8 @@
 'use client';
 
-import { useState, useEffect, ChangeEvent, FormEvent } from 'react';
+import { useState, useEffect } from "react";
+import { AdminLayout } from "@/components/layouts/admin-layout";
+import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -9,25 +11,15 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-  DialogFooter,
-  DialogDescription,
 } from "@/components/ui/dialog";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -35,71 +27,31 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
-import { toast } from "sonner";
-import { AdminLayout } from "@/components/layouts/admin-layout";
-import { Search, UserPlus, Trash2 } from "lucide-react";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-
-const agentSchema = z.object({
-  name: z.string().min(2, "Le nom doit contenir au moins 2 caractères"),
-  email: z.string().email("Email invalide"),
-  password: z.string().min(6, "Le mot de passe doit contenir au moins 6 caractères"),
-  role: z.string().min(1, "Le rôle est requis"),
-});
+import { toast } from "@/components/ui/use-toast";
+import { Plus, Pencil, Trash2 } from "lucide-react";
 
 interface Agent {
-  _id: string;
+  id: string;
+  firstName: string;
+  lastName: string;
   email: string;
-  nom: string;
-  prenom: string;
   role: string;
-  createdAt: string;
+  commune: string;
+  status: "active" | "inactive";
 }
 
-interface NewAgent {
-  email: string;
-  password: string;
-  nom: string;
-  prenom: string;
-  role: string;
-}
-
-export default function AdminAgents() {
+export default function AgentsManagementPage() {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [newAgent, setNewAgent] = useState<NewAgent>({
+  const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
+  const [formData, setFormData] = useState({
+    firstName: "",
+    lastName: "",
     email: "",
-    password: "",
-    nom: "",
-    prenom: "",
-    role: "agent"
-  });
-
-  const form = useForm<z.infer<typeof agentSchema>>({
-    resolver: zodResolver(agentSchema),
-    defaultValues: {
-      name: "",
-      email: "",
-      password: "",
-      role: "",
-    },
+    role: "",
+    commune: "",
+    status: "active"
   });
 
   useEffect(() => {
@@ -108,243 +60,272 @@ export default function AdminAgents() {
 
   const fetchAgents = async () => {
     try {
-      const response = await fetch('/api/admin/agents');
+      const response = await fetch("/api/admin/agents");
+      if (!response.ok) throw new Error("Erreur lors de la récupération des agents");
       const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.error || 'Erreur lors de la récupération des agents');
-      }
-      
       setAgents(data);
     } catch (error) {
-      console.error('Erreur détaillée:', error);
-      toast.error(error instanceof Error ? error.message : 'Erreur lors de la récupération des agents');
+      toast({
+        title: "Erreur",
+        description: "Impossible de charger les agents",
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleCreateAgent = async (e: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const response = await fetch('/api/admin/agents', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(newAgent),
+      const url = selectedAgent 
+        ? `/api/admin/agents/${selectedAgent.id}`
+        : "/api/admin/agents";
+      
+      const response = await fetch(url, {
+        method: selectedAgent ? "PUT" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
       });
 
-      if (!response.ok) {
-        throw new Error('Erreur lors de la création de l\'agent');
-      }
+      if (!response.ok) throw new Error("Erreur lors de l'opération");
 
-      toast.success('Agent créé avec succès');
+      toast({
+        title: "Succès",
+        description: selectedAgent 
+          ? "Agent mis à jour avec succès"
+          : "Agent créé avec succès",
+      });
+
       setIsDialogOpen(false);
-      setNewAgent({
-        email: "",
-        password: "",
-        nom: "",
-        prenom: "",
-        role: "agent"
-      });
       fetchAgents();
     } catch (error) {
-      console.error('Erreur:', error);
-      toast.error('Erreur lors de la création de l\'agent');
+      toast({
+        title: "Erreur",
+        description: "Une erreur est survenue",
+        variant: "destructive",
+      });
     }
   };
 
-  const handleDeleteAgent = async (agentId: string) => {
+  const handleDelete = async (id: string) => {
+    if (!confirm("Êtes-vous sûr de vouloir supprimer cet agent ?")) return;
+
     try {
-      const response = await fetch(`/api/admin/agents?id=${agentId}`, {
-        method: 'DELETE',
+      const response = await fetch(`/api/admin/agents/${id}`, {
+        method: "DELETE",
       });
 
-      if (!response.ok) {
-        throw new Error('Erreur lors de la suppression de l\'agent');
-      }
+      if (!response.ok) throw new Error("Erreur lors de la suppression");
 
-      toast.success('Agent supprimé avec succès');
+      toast({
+        title: "Succès",
+        description: "Agent supprimé avec succès",
+      });
+
       fetchAgents();
     } catch (error) {
-      console.error('Erreur:', error);
-      toast.error('Erreur lors de la suppression de l\'agent');
+      toast({
+        title: "Erreur",
+        description: "Impossible de supprimer l'agent",
+        variant: "destructive",
+      });
     }
   };
 
-  const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const target = e.target as HTMLInputElement;
-    const { name, value } = target;
-    setNewAgent(prev => ({ ...prev, [name]: value }));
+  const handleEdit = (agent: Agent) => {
+    setSelectedAgent(agent);
+    setFormData({
+      firstName: agent.firstName,
+      lastName: agent.lastName,
+      email: agent.email,
+      role: agent.role,
+      commune: agent.commune,
+      status: agent.status
+    });
+    setIsDialogOpen(true);
   };
 
-  const handleSearchChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const target = e.target as HTMLInputElement;
-    setSearchQuery(target.value);
+  const handleAdd = () => {
+    setSelectedAgent(null);
+    setFormData({
+      firstName: "",
+      lastName: "",
+      email: "",
+      role: "",
+      commune: "",
+      status: "active"
+    });
+    setIsDialogOpen(true);
   };
 
-  const filteredAgents = agents.filter((agent) =>
-    `${agent.prenom} ${agent.nom}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    agent.email.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  if (isLoading) {
+    return (
+      <AdminLayout>
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        </div>
+      </AdminLayout>
+    );
+  }
 
   return (
     <AdminLayout>
-      <div className="flex flex-col">
-        <div className="flex-1 space-y-4 p-8 pt-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-3xl font-bold tracking-tight">Gestion des Agents</h2>
-              <p className="text-muted-foreground">
-                Créez et gérez les agents de la mairie
-              </p>
-            </div>
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-              <DialogTrigger asChild>
-                <Button>
-                  <UserPlus className="mr-2 h-4 w-4" />
-                  Nouvel Agent
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Créer un nouvel agent</DialogTitle>
-                  <DialogDescription>
-                    Remplissez les informations pour créer un nouvel agent
-                  </DialogDescription>
-                </DialogHeader>
-                <form onSubmit={handleCreateAgent} className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="nom">Nom</Label>
-                      <Input
-                        id="nom"
-                        name="nom"
-                        value={newAgent.nom}
-                        onChange={handleInputChange}
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="prenom">Prénom</Label>
-                      <Input
-                        id="prenom"
-                        name="prenom"
-                        value={newAgent.prenom}
-                        onChange={handleInputChange}
-                        required
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input
-                      id="email"
-                      name="email"
-                      type="email"
-                      value={newAgent.email}
-                      onChange={handleInputChange}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="password">Mot de passe</Label>
-                    <Input
-                      id="password"
-                      name="password"
-                      type="password"
-                      value={newAgent.password}
-                      onChange={handleInputChange}
-                      required
-                    />
-                  </div>
-                  <DialogFooter>
-                    <Button type="submit">Créer l'agent</Button>
-                  </DialogFooter>
-                </form>
-              </DialogContent>
-            </Dialog>
-          </div>
-
-          <div className="flex items-center space-x-2">
-            <div className="relative flex-1">
-              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Rechercher un agent..."
-                value={searchQuery}
-                onChange={handleSearchChange}
-                className="pl-8"
-              />
-            </div>
-          </div>
-
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nom</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Rôle</TableHead>
-                  <TableHead>Date de création</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading ? (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center">
-                      Chargement...
-                    </TableCell>
-                  </TableRow>
-                ) : filteredAgents.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center">
-                      Aucun agent trouvé
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredAgents.map((agent) => (
-                    <TableRow key={agent._id}>
-                      <TableCell>{agent.prenom} {agent.nom}</TableCell>
-                      <TableCell>{agent.email}</TableCell>
-                      <TableCell>{agent.role}</TableCell>
-                      <TableCell>
-                        {new Date(agent.createdAt).toLocaleDateString()}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="icon">
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Êtes-vous sûr ?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Cette action est irréversible. L'agent sera définitivement supprimé.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Annuler</AlertDialogCancel>
-                              <AlertDialogAction
-                                onClick={() => handleDeleteAgent(agent._id)}
-                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                              >
-                                Supprimer
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
+      <div className="container mx-auto py-10">
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl font-bold">Gestion des Agents</h1>
+          <Button onClick={handleAdd}>
+            <Plus className="mr-2 h-4 w-4" />
+            Ajouter un agent
+          </Button>
         </div>
+
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Nom</TableHead>
+              <TableHead>Email</TableHead>
+              <TableHead>Rôle</TableHead>
+              <TableHead>Commune</TableHead>
+              <TableHead>Statut</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {agents.map((agent) => (
+              <TableRow key={agent.id}>
+                <TableCell>{`${agent.firstName} ${agent.lastName}`}</TableCell>
+                <TableCell>{agent.email}</TableCell>
+                <TableCell>{agent.role}</TableCell>
+                <TableCell>{agent.commune}</TableCell>
+                <TableCell>
+                  <span className={`px-2 py-1 rounded-full text-xs ${
+                    agent.status === "active" 
+                      ? "bg-green-100 text-green-800"
+                      : "bg-red-100 text-red-800"
+                  }`}>
+                    {agent.status === "active" ? "Actif" : "Inactif"}
+                  </span>
+                </TableCell>
+                <TableCell className="text-right">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleEdit(agent)}
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleDelete(agent.id)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>
+                {selectedAgent ? "Modifier l'agent" : "Ajouter un agent"}
+              </DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="firstName">Prénom</Label>
+                  <Input
+                    id="firstName"
+                    value={formData.firstName}
+                    onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="lastName">Nom</Label>
+                  <Input
+                    id="lastName"
+                    value={formData.lastName}
+                    onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                    required
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="role">Rôle</Label>
+                <Select
+                  value={formData.role}
+                  onValueChange={(value) => setFormData({ ...formData, role: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Sélectionner un rôle" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="agent">Agent</SelectItem>
+                    <SelectItem value="supervisor">Superviseur</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="commune">Commune</Label>
+                <Select
+                  value={formData.commune}
+                  onValueChange={(value) => setFormData({ ...formData, commune: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Sélectionner une commune" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="commune1">Commune 1</SelectItem>
+                    <SelectItem value="commune2">Commune 2</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="status">Statut</Label>
+                <Select
+                  value={formData.status}
+                  onValueChange={(value) => setFormData({ ...formData, status: value as "active" | "inactive" })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Sélectionner un statut" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">Actif</SelectItem>
+                    <SelectItem value="inactive">Inactif</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex justify-end space-x-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsDialogOpen(false)}
+                >
+                  Annuler
+                </Button>
+                <Button type="submit">
+                  {selectedAgent ? "Mettre à jour" : "Créer"}
+                </Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
     </AdminLayout>
   );

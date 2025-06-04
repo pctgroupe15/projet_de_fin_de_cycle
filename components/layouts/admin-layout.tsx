@@ -1,25 +1,30 @@
 "use client";
 
-import { ReactNode } from "react";
-import { usePathname } from "next/navigation";
+import { useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
   Users,
   FileText,
+  CreditCard,
   Settings,
-  LogOut,
   Menu,
+  X,
+  LogOut,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { signOut } from "next-auth/react";
-import { useState } from "react";
-import { UserNav } from "@/components/user-nav";
-import { ThemeToggle } from "@/components/theme-toggle";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 
 interface AdminLayoutProps {
-  children: ReactNode;
+  children: React.ReactNode;
 }
 
 const navigation = [
@@ -29,14 +34,24 @@ const navigation = [
     icon: LayoutDashboard,
   },
   {
-    name: "Agents",
-    href: "/admin/dashboard/agents",
+    name: "Utilisateurs",
+    href: "/admin/dashboard/users",
     icon: Users,
   },
   {
-    name: "Documents",
-    href: "/admin/dashboard/documents",
+    name: "Types de documents",
+    href: "/admin/dashboard/document-types",
     icon: FileText,
+  },
+  {
+    name: "Demandes",
+    href: "/admin/dashboard/requests",
+    icon: FileText,
+  },
+  {
+    name: "Paiements",
+    href: "/admin/dashboard/payments",
+    icon: CreditCard,
   },
   {
     name: "Paramètres",
@@ -46,80 +61,131 @@ const navigation = [
 ];
 
 export function AdminLayout({ children }: AdminLayoutProps) {
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const pathname = usePathname();
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  const handleLogout = () => {
+    // Implémenter la déconnexion
+    console.log("Déconnexion...");
+  };
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <header className="sticky top-0 z-40 border-b bg-background">
-        <div className="container flex h-16 items-center justify-between py-4">
-          <div className="flex items-center gap-2">
+    <div className="min-h-screen bg-background">
+      {/* Sidebar pour desktop */}
+      <div className="hidden md:fixed md:inset-y-0 md:flex md:w-64 md:flex-col">
+        <div className="flex min-h-0 flex-1 flex-col border-r bg-card">
+          <div className="flex flex-1 flex-col overflow-y-auto pt-5 pb-4">
+            <div className="flex flex-shrink-0 items-center px-4">
+              <Link href="/admin/dashboard" className="text-xl font-bold">
+                Admin Panel
+              </Link>
+            </div>
+            <nav className="mt-5 flex-1 space-y-1 px-2">
+              {navigation.map((item) => {
+                const isActive = pathname === item.href;
+                return (
+                  <Link
+                    key={item.name}
+                    href={item.href}
+                    className={cn(
+                      "group flex items-center px-2 py-2 text-sm font-medium rounded-md",
+                      isActive
+                        ? "bg-primary text-primary-foreground"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    )}
+                  >
+                    <item.icon
+                      className={cn(
+                        "mr-3 h-5 w-5 flex-shrink-0",
+                        isActive
+                          ? "text-primary-foreground"
+                          : "text-muted-foreground group-hover:text-foreground"
+                      )}
+                    />
+                    {item.name}
+                  </Link>
+                );
+              })}
+            </nav>
+          </div>
+          <div className="flex flex-shrink-0 border-t p-4">
             <Button
               variant="ghost"
-              size="icon"
-              className="md:hidden"
-              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+              className="w-full justify-start"
+              onClick={handleLogout}
             >
-              <Menu className="h-5 w-5" />
+              <LogOut className="mr-3 h-5 w-5" />
+              Déconnexion
             </Button>
-            <Link href="/admin/dashboard">
-              <div className="flex items-center gap-2">
-                <FileText className="h-6 w-6 text-primary" />
-                <span className="font-bold text-xl">Administration</span>
-              </div>
-            </Link>
-          </div>
-          <div className="flex items-center gap-4">
-            <ThemeToggle />
-            <UserNav />
           </div>
         </div>
-      </header>
+      </div>
 
-      <div className="flex flex-1">
-        {/* Sidebar */}
-        <aside className={cn(
-          "fixed inset-y-0 left-0 z-30 w-64 transform border-r bg-background transition-transform duration-200 ease-in-out md:relative md:translate-x-0",
-          isSidebarOpen ? "translate-x-0" : "-translate-x-full"
-        )}>
-          <div className="flex h-full flex-col gap-2">
-            <div className="flex-1 overflow-auto py-2">
-              <nav className="grid items-start px-4 text-sm font-medium">
-                {navigation.map((item) => {
-                  const isActive = pathname === item.href;
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
+      {/* Header mobile */}
+      <div className="sticky top-0 z-10 flex h-16 flex-shrink-0 bg-card shadow md:hidden">
+        <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
+          <SheetTrigger asChild>
+            <Button
+              variant="ghost"
+              className="px-4 text-muted-foreground focus:outline-none"
+            >
+              <Menu className="h-6 w-6" />
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="left" className="w-64 p-0">
+            <SheetHeader className="p-4">
+              <SheetTitle>Admin Panel</SheetTitle>
+            </SheetHeader>
+            <nav className="flex-1 space-y-1 px-2 py-4">
+              {navigation.map((item) => {
+                const isActive = pathname === item.href;
+                return (
+                  <Link
+                    key={item.name}
+                    href={item.href}
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className={cn(
+                      "group flex items-center px-2 py-2 text-sm font-medium rounded-md",
+                      isActive
+                        ? "bg-primary text-primary-foreground"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    )}
+                  >
+                    <item.icon
                       className={cn(
-                        "flex items-center gap-3 rounded-lg px-3 py-2 transition-colors",
+                        "mr-3 h-5 w-5 flex-shrink-0",
                         isActive
-                          ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                          : "hover:bg-muted text-muted-foreground hover:text-foreground"
+                          ? "text-primary-foreground"
+                          : "text-muted-foreground group-hover:text-foreground"
                       )}
-                    >
-                      <item.icon className="h-4 w-4" />
-                      {item.name}
-                    </Link>
-                  );
-                })}
-              </nav>
-            </div>
-            <div className="mt-auto p-4">
+                    />
+                    {item.name}
+                  </Link>
+                );
+              })}
+            </nav>
+            <div className="border-t p-4">
               <Button
                 variant="ghost"
-                className="w-full justify-start gap-2"
-                onClick={() => signOut()}
+                className="w-full justify-start"
+                onClick={handleLogout}
               >
-                <LogOut className="h-4 w-4" />
+                <LogOut className="mr-3 h-5 w-5" />
                 Déconnexion
               </Button>
             </div>
-          </div>
-        </aside>
+          </SheetContent>
+        </Sheet>
+        <div className="flex flex-1 items-center px-4">
+          <Link href="/admin/dashboard" className="text-xl font-bold">
+            Admin Panel
+          </Link>
+        </div>
+      </div>
 
-        {/* Main content */}
-        <main className="flex-1 p-6">{children}</main>
+      {/* Contenu principal */}
+      <div className="flex flex-1 flex-col md:pl-64">
+        <main className="flex-1">{children}</main>
       </div>
     </div>
   );

@@ -1,272 +1,272 @@
 "use client";
 
-import { useEffect, useState, useCallback, useMemo } from "react";
-import Link from "next/link";
-import { 
-  FileText, 
-  Users, 
-  Bell, 
-  Shield, 
-  UserCog, 
-  Settings, 
-  LogOut,
-  BarChart4,
-  Clock,
-  CheckCircle,
-  BarChart3,
-  UserPlus,
-  UserMinus
-} from "lucide-react";
+import { useState, useEffect } from "react";
+import { AdminLayout } from "@/components/layouts/admin-layout";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { UserNav } from "@/components/user-nav";
-import { Input } from "@/components/ui/input";
-import { logout } from "@/lib/auth";
-import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { Download } from "lucide-react";
 
-interface AgentStats {
-  totalAgents: number;
-  activeAgents: number;
-  inactiveAgents: number;
-  newAgents: number;
+interface DashboardStats {
+  users: {
+    total: number;
+    active: number;
+    new: number;
+  };
+  documents: {
+    declarations: number;
+    certificates: number;
+    total: number;
+    pending: number;
+    completed: number;
+  };
+  payments: {
+    total: number;
+    amount: number;
+    pending: number;
+  };
+  agents: {
+    total: number;
+    active: number;
+  };
+  recentRequests: {
+    id: string;
+    type: string;
+    status: string;
+    createdAt: string;
+    name: string;
+    citizen: string;
+    email: string;
+  }[];
+  recentPayments: {
+    id: string;
+    amount: number;
+    status: string;
+    createdAt: string;
+    type: string;
+    name: string;
+    citizen: string;
+    email: string;
+  }[];
 }
 
-export default function AdminDashboard() {
-  const router = useRouter();
-  const [agentStats, setAgentStats] = useState<AgentStats>({
-    totalAgents: 0,
-    activeAgents: 0,
-    inactiveAgents: 0,
-    newAgents: 0
-  });
+export default function DashboardPage() {
+  const [stats, setStats] = useState<DashboardStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [timeRange, setTimeRange] = useState("week");
 
-  const fetchAgentStats = useCallback(async () => {
+  useEffect(() => {
+    fetchStats();
+  }, [timeRange]);
+
+  const fetchStats = async () => {
     try {
-      const response = await fetch('/api/admin/stats');
-      if (!response.ok) {
-        throw new Error('Erreur lors de la récupération des statistiques');
-      }
+      const response = await fetch(`/api/admin/dashboard?timeRange=${timeRange}`);
+      if (!response.ok) throw new Error("Erreur lors de la récupération des statistiques");
       const data = await response.json();
-      setAgentStats(data);
+      setStats(data);
     } catch (error) {
-      console.error('Erreur:', error);
-      toast.error('Erreur lors de la récupération des statistiques');
+      console.error("Erreur:", error);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  };
 
-  useEffect(() => {
-    fetchAgentStats();
-  }, [fetchAgentStats]);
+  const handleExport = async () => {
+    try {
+      const response = await fetch("/api/admin/dashboard/export", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ timeRange }),
+      });
 
-  const handleLogout = useCallback(() => {
-    logout();
-    router.push('/auth/login');
-  }, [router]);
+      if (!response.ok) throw new Error("Erreur lors de l'export");
 
-  const statsCards = useMemo(() => (
-    <>
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Agents Actifs</CardTitle>
-          <Users className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{isLoading ? "..." : agentStats.activeAgents}</div>
-          <p className="text-xs text-muted-foreground">
-            sur {isLoading ? "..." : agentStats.totalAgents} agents au total
-          </p>
-        </CardContent>
-      </Card>
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `rapport-${new Date().toISOString().split("T")[0]}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error("Erreur lors de l'export:", error);
+    }
+  };
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Nouveaux Agents</CardTitle>
-          <UserPlus className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{isLoading ? "..." : agentStats.newAgents}</div>
-          <p className="text-xs text-muted-foreground">
-            dans les 30 derniers jours
-          </p>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Agents Inactifs</CardTitle>
-          <UserMinus className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{isLoading ? "..." : agentStats.inactiveAgents}</div>
-          <p className="text-xs text-muted-foreground">
-            {isLoading ? "..." : `${((agentStats.inactiveAgents / agentStats.totalAgents) * 100).toFixed(1)}% du total`}
-          </p>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Taux d'Activité</CardTitle>
-          <CheckCircle className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">
-            {isLoading ? "..." : `${((agentStats.activeAgents / agentStats.totalAgents) * 100).toFixed(1)}%`}
-          </div>
-          <p className="text-xs text-muted-foreground">
-            des agents sont actifs
-          </p>
-        </CardContent>
-      </Card>
-    </>
-  ), [isLoading, agentStats]);
-
-  const quickActions = useMemo(() => (
-    <div className="grid grid-cols-1 gap-4">
-      <Button 
-        className="w-full" 
-        variant="outline" 
-        asChild
-      >
-        <Link href="/admin/dashboard/users">
-          <UserCog className="mr-2 h-4 w-4" />
-          Gérer les Utilisateurs
-        </Link>
-      </Button>
-      <Button 
-        className="w-full" 
-        variant="outline" 
-        asChild
-      >
-        <Link href="/admin/dashboard/documents">
-          <FileText className="mr-2 h-4 w-4" />
-          Gérer les Documents
-        </Link>
-      </Button>
-      <Button 
-        className="w-full" 
-        variant="outline" 
-        asChild
-      >
-        <Link href="/admin/dashboard/agents">
-          <Users className="mr-2 h-4 w-4" />
-          Gérer les Agents
-        </Link>
-      </Button>
-      <Button 
-        className="w-full" 
-        variant="outline" 
-        asChild
-      >
-        <Link href="/admin/dashboard/statistics">
-          <BarChart3 className="mr-2 h-4 w-4" />
-          Voir les Statistiques
-        </Link>
-      </Button>
-    </div>
-  ), []);
+  if (isLoading || !stats) {
+    return (
+      <AdminLayout>
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        </div>
+      </AdminLayout>
+    );
+  }
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <header className="sticky top-0 z-50 w-full border-b bg-background">
-        <div className="container flex h-16 items-center">
-          <div className="mr-4 flex">
-            <Link href="/" className="flex items-center space-x-2">
-              <Shield className="h-6 w-6 text-primary" />
-              <span className="font-bold">Console d'Administration</span>
-            </Link>
-          </div>
-          <div className="flex-1"></div>
-          <div className="flex items-center space-x-4">
-            <div className="relative">
-              <Bell className="h-5 w-5 text-muted-foreground" />
-              <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] text-primary-foreground">2</span>
-            </div>
-            <UserNav />
-          </div>
-        </div>
-      </header>
-      <div className="flex-1">
-        <div className="border-b">
-          <div className="container flex h-16 items-center gap-4 px-4 sm:gap-8">
-            <Link href="/admin/dashboard" className="font-medium text-primary">
-              Tableau de bord
-            </Link>
-            <Link href="/admin/dashboard/users" className="text-muted-foreground transition-colors hover:text-foreground">
-              Gestion des Utilisateurs
-            </Link>
-            <Link href="/admin/dashboard/documents" className="text-muted-foreground transition-colors hover:text-foreground">
-              Gestion des Documents
-            </Link>
-            <Link href="/admin/dashboard/agents" className="text-muted-foreground transition-colors hover:text-foreground">
-              Gestion des Agents
-            </Link>
-            <Link href="/admin/dashboard/document-types" className="text-muted-foreground transition-colors hover:text-foreground">
-              Types de Documents
-            </Link>
-            <Link href="/admin/dashboard/statistics" className="text-muted-foreground transition-colors hover:text-foreground">
-              Statistiques
-            </Link>
-            <Link href="/admin/settings" className="text-muted-foreground transition-colors hover:text-foreground">
-              Paramètres
-            </Link>
+    <AdminLayout>
+      <div className="container mx-auto py-10">
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl font-bold">Tableau de Bord</h1>
+          <div className="flex items-center gap-4">
+            <Select value={timeRange} onValueChange={setTimeRange}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Période" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="today">Aujourd'hui</SelectItem>
+                <SelectItem value="week">Cette semaine</SelectItem>
+                <SelectItem value="month">Ce mois</SelectItem>
+                <SelectItem value="year">Cette année</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button onClick={handleExport}>
+              <Download className="mr-2 h-4 w-4" />
+              Exporter le rapport
+            </Button>
           </div>
         </div>
-        <div className="container space-y-4 p-8 pt-6">
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between space-y-2 md:space-y-0">
-            <h2 className="text-3xl font-bold tracking-tight">Console d'Administration</h2>
-            <div className="flex items-center space-x-2">
-              <Button 
-                variant="outline" 
-                onClick={handleLogout}
-                aria-label="Se déconnecter"
-              >
-                <LogOut className="mr-2 h-4 w-4" />
-                Déconnexion
-              </Button>
-            </div>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            {statsCards}
-          </div>
-          
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-            <Card className="col-span-4">
-              <CardHeader>
-                <CardTitle>Vue d'ensemble du système</CardTitle>
-                <CardDescription>
-                  Statistiques d'utilisation du portail administratif
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="h-[300px] flex items-center justify-center border rounded-md p-4">
-                  <div className="text-center space-y-2">
-                    <BarChart4 className="h-16 w-16 text-muted-foreground mx-auto" />
-                    <p className="text-sm text-muted-foreground">Graphique d'activité (simulé)</p>
+
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-8">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">
+                Total des demandes
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.documents.total}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">
+                Demandes en attente
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.documents.pending}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">
+                Demandes complétées
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.documents.completed}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">
+                Total des utilisateurs
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.users.total}</div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-2">
+          <Card>
+            <CardHeader>
+              <CardTitle>Demandes récentes</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {stats.recentRequests.map((request) => (
+                  <div
+                    key={request.id}
+                    className="flex items-center justify-between"
+                  >
+                    <div>
+                      <p className="font-medium">{request.type}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {request.citizen}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm text-muted-foreground">
+                        {new Date(request.createdAt).toLocaleDateString()}
+                      </p>
+                      <p
+                        className={`text-sm ${
+                          request.status === "PENDING"
+                            ? "text-yellow-600"
+                            : request.status === "COMPLETED"
+                            ? "text-green-600"
+                            : "text-red-600"
+                        }`}
+                      >
+                        {request.status === "PENDING"
+                          ? "En attente"
+                          : request.status === "COMPLETED"
+                          ? "Complété"
+                          : "Rejeté"}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-            
-            <Card className="col-span-3">
-              <CardHeader>
-                <CardTitle>Actions rapides</CardTitle>
-                <CardDescription>
-                  Accès rapide aux fonctionnalités principales
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {quickActions}
-              </CardContent>
-            </Card>
-          </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Paiements récents</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {stats.recentPayments.map((payment) => (
+                  <div
+                    key={payment.id}
+                    className="flex items-center justify-between"
+                  >
+                    <div>
+                      <p className="font-medium">{payment.type}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {payment.citizen}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-medium">{payment.amount} €</p>
+                      <p
+                        className={`text-sm ${
+                          payment.status === "PAID"
+                            ? "text-green-600"
+                            : payment.status === "PENDING"
+                            ? "text-yellow-600"
+                            : "text-red-600"
+                        }`}
+                      >
+                        {payment.status === "PAID"
+                          ? "Payé"
+                          : payment.status === "PENDING"
+                          ? "En attente"
+                          : "Échoué"}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
-    </div>
+    </AdminLayout>
   );
 }
