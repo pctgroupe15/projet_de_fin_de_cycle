@@ -2,8 +2,9 @@ import { NextResponse } from 'next/server';
 import clientPromise from '@/lib/mongodb';
 import { RequestStatus } from '@/types/request';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { authOptions } from '@/lib/auth';
 import { ObjectId } from 'mongodb';
+import { UserRole } from '@/types/user';
 
 export async function PATCH(
   request: Request,
@@ -19,7 +20,7 @@ export async function PATCH(
     }
 
     // Vérifier si l'utilisateur est un agent
-    if (session.user.role !== 'AGENT') {
+    if (session.user.role !== UserRole.AGENT) {
       return new NextResponse(
         JSON.stringify({ status: "error", message: "Accès non autorisé" }),
         { status: 403 }
