@@ -42,19 +42,25 @@ interface DocumentDetails {
   payment?: Payment;
 }
 
-const DocumentDetailsPage = ({ params }: { params: { id: string } }) => {
+interface DocumentDetailsPageProps {
+  params: Promise<{ id: string }>;
+}
+
+export default function DocumentDetailsPage({ params }: DocumentDetailsPageProps) {
   const [document, setDocument] = useState<DocumentDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const resolvedParams = React.use(params);
 
   useEffect(() => {
     fetchDocumentDetails();
-  }, [params.id]);
+  }, [resolvedParams.id]);
 
   const fetchDocumentDetails = async () => {
     try {
-      const response = await fetch(`/api/citizen/documents/${params.id}`);
+      const response = await fetch(`/api/citizen/documents/${resolvedParams.id}`);
       const data = await response.json();
+      
       if (data.success) {
         console.log('Document data:', data.data);
         setDocument(data.data);
@@ -99,7 +105,7 @@ const DocumentDetailsPage = ({ params }: { params: { id: string } }) => {
   };
 
   const handlePayment = () => {
-    router.push(`/citizen/payment?requestId=${params.id}&amount=5000`);
+    router.push(`/citizen/payment?requestId=${resolvedParams.id}&amount=5000`);
   };
 
   if (loading) {
@@ -125,7 +131,7 @@ const DocumentDetailsPage = ({ params }: { params: { id: string } }) => {
   return (
     <CitizenLayout>
       <div className="p-6 space-y-6">
-        <Button 
+        <Button
           variant="ghost"
           className="mb-4"
           onClick={() => router.push('/citizen/documents')}
@@ -313,6 +319,4 @@ const DocumentDetailsPage = ({ params }: { params: { id: string } }) => {
       </div>
     </CitizenLayout>
   );
-};
-
-export default DocumentDetailsPage;
+}
