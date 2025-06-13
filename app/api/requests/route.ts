@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import clientPromise from '@/lib/mongodb';
-import { Request, RequestStatus } from '@/types/request';
+import { Request as ApiRequest, RequestStatus } from '@/types/request';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '../auth/[...nextauth]/route';
+import { authOptions } from '@/lib/auth';
+import { Document } from 'mongodb';
 
 export async function GET(request: Request) {
   try {
@@ -60,7 +61,7 @@ export async function POST(request: Request) {
     const db = client.db("mairie_db");
     const collection = db.collection("requests");
 
-    const newRequest: Request = {
+    const newRequest: ApiRequest = {
       userId: session.user.id,
       type,
       status: RequestStatus.PENDING,
@@ -70,7 +71,7 @@ export async function POST(request: Request) {
       updatedAt: new Date()
     };
 
-    const result = await collection.insertOne(newRequest);
+    const result = await collection.insertOne(newRequest as Document);
 
     return new NextResponse(
       JSON.stringify({

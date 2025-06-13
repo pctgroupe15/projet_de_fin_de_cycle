@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { RequestStatus } from '@prisma/client';
 
 export async function GET(
   request: Request,
@@ -86,7 +87,7 @@ export async function PATCH(
     }
 
     // Si l'admin a déjà validé ou rejeté la déclaration, empêcher la modification
-    if (existingDeclaration.status === 'approuvé' || existingDeclaration.status === 'rejeté') {
+    if (existingDeclaration.status === RequestStatus.COMPLETED || existingDeclaration.status === RequestStatus.REJECTED) {
       return NextResponse.json(
         { success: false, message: 'Cette déclaration a déjà été traitée par l\'administrateur' },
         { status: 403 }

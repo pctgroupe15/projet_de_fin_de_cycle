@@ -27,7 +27,8 @@ export async function GET(
         payment: true,
         agent: {
           select: {
-            name: true,
+            firstName: true,
+            lastName: true,
             email: true
           }
         }

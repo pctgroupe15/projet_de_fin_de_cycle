@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { BirthCertificate, BirthDeclaration } from '@prisma/client';
+import { BirthCertificate, BirthDeclaration, RequestStatus } from '@prisma/client';
 
 type BirthCertificateWithCitizen = BirthCertificate & {
   citizen: {
@@ -30,7 +30,7 @@ export async function GET() {
     const birthCertificates = await prisma.birthCertificate.findMany({
       where: {
         status: {
-          not: 'DELETED'
+          not: RequestStatus.REJECTED
         }
       },
       include: {
@@ -50,7 +50,7 @@ export async function GET() {
     const birthDeclarations = await prisma.birthDeclaration.findMany({
       where: {
         status: {
-          not: 'DELETED'
+          not: RequestStatus.REJECTED
         }
       },
       include: {

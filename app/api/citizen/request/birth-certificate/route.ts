@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { nanoid } from 'nanoid';
+import { RequestStatus } from '@prisma/client';
 
 export async function POST(request: Request) {
   try {
@@ -43,7 +44,7 @@ export async function POST(request: Request) {
         fatherFullName: fatherFullName || null,
         motherFullName: motherFullName || null,
         acteNumber: acteNumber || null,
-        status: 'en_attente',
+        status: RequestStatus.PENDING,
         trackingNumber: nanoid(10),
         files: {
           create: [

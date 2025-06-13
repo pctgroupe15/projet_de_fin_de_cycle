@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from '@/lib/prisma';
+import { RequestStatus } from '@prisma/client';
 
 export async function GET() {
   try {
@@ -63,7 +64,9 @@ export async function PUT(request: Request) {
         id: documentId,
       },
       data: {
-        status: status === "approuvé" ? "approuvé" : status === "rejeté" ? "rejeté" : "en_attente",
+        status: status === "approuvé" ? RequestStatus.COMPLETED : 
+                status === "rejeté" ? RequestStatus.REJECTED : 
+                RequestStatus.PENDING,
         agentId: session.user.id,
       },
     });
@@ -124,7 +127,7 @@ export async function PATCH(request: Request) {
     }
 
     // Si l'admin a déjà validé ou rejeté la demande, empêcher la modification
-    if (existingCertificate.status === 'approuvé' || existingCertificate.status === 'rejeté') {
+    if (existingCertificate.status === RequestStatus.COMPLETED || existingCertificate.status === RequestStatus.REJECTED) {
       return NextResponse.json(
         { success: false, message: 'Cette demande a déjà été traitée par l\'administrateur' },
         { status: 403 }

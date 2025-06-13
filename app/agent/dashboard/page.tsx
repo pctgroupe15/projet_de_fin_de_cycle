@@ -197,7 +197,8 @@ export default function AgentDashboardPage() {
                         </div>
                         <Progress 
                           value={Math.round((section.stats.pending / section.stats.total) * 100)}
-                          className={`h-2 bg-${section.color}-100`}
+                          max={100}
+                          className="h-2"
                         />
                       </div>
                     )}

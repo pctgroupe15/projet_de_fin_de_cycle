@@ -50,6 +50,9 @@ export async function POST(request: Request) {
 
     // Vérifier que l'agent a bien été créé
     const createdAgent = await db.collection('agents').findOne({ _id: result.insertedId });
+    if (!createdAgent) {
+      throw new Error('Agent non trouvé après création');
+    }
     console.log('Agent créé:', {
       id: createdAgent._id,
       email: createdAgent.email,

@@ -67,7 +67,7 @@ export async function POST(
       where: { id: requestId },
       data: {
         files: {
-          push: {
+          create: {
             id: uploadResult.public_id,
             type: 'acte_naissance_final',
             url: fileUrl,

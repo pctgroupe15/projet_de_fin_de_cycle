@@ -3,6 +3,36 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
+interface Document {
+  id: string;
+  type: string;
+  url: string;
+}
+
+interface Citizen {
+  name: string | null;
+  email: string;
+}
+
+interface BirthDeclaration {
+  id: string;
+  status: string;
+  createdAt: Date;
+  childFirstName: string;
+  childLastName: string;
+  citizen: Citizen;
+  documents: Document[];
+}
+
+interface BirthCertificate {
+  id: string;
+  status: string;
+  createdAt: Date;
+  fullName: string;
+  citizen: Citizen;
+  files: Document[];
+}
+
 export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions);
@@ -81,7 +111,7 @@ export async function GET(request: Request) {
 
     // Combiner et formater les résultats
     const requests = [
-      ...declarations.map(declaration => ({
+      ...declarations.map((declaration: BirthDeclaration) => ({
         id: declaration.id,
         documentType: "Déclaration de naissance",
         status: declaration.status,
@@ -91,13 +121,13 @@ export async function GET(request: Request) {
           name: declaration.citizen.name,
           email: declaration.citizen.email,
         },
-        documents: declaration.documents.map(doc => ({
+        documents: declaration.documents.map((doc: Document) => ({
           id: doc.id,
           name: doc.type,
           url: doc.url,
         })),
       })),
-      ...certificates.map(certificate => ({
+      ...certificates.map((certificate: BirthCertificate) => ({
         id: certificate.id,
         documentType: "Acte de naissance",
         status: certificate.status,
@@ -107,7 +137,7 @@ export async function GET(request: Request) {
           name: certificate.citizen.name,
           email: certificate.citizen.email,
         },
-        documents: certificate.files.map(doc => ({
+        documents: certificate.files.map((doc: Document) => ({
           id: doc.id,
           name: doc.type,
           url: doc.url,

@@ -4,6 +4,7 @@ import { connectToDatabase } from '@/lib/mongodb';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
+import { ObjectId } from 'mongodb';
 
 // GET - Récupérer tous les agents
 export async function GET() {
@@ -148,7 +149,7 @@ export async function DELETE(request: Request) {
       );
     }
 
-    const result = await db.collection('Agent').deleteOne({ _id: agentId });
+    const result = await db.collection('Agent').deleteOne({ _id: new ObjectId(agentId) });
 
     if (result.deletedCount === 0) {
       return NextResponse.json(
