@@ -2,8 +2,18 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { RequestStatus } from '@prisma/client';
 import { nanoid } from 'nanoid';
+
+enum RequestStatus {
+  PENDING = 'PENDING',
+  COMPLETED = 'COMPLETED',
+  REJECTED = 'REJECTED'
+}
+
+interface Document {
+  type: string;
+  url: string;
+}
 
 export async function POST(
   request: Request,
@@ -74,7 +84,7 @@ export async function POST(
         trackingNumber: nanoid(10),
         agentId: session.user.id,
         files: {
-          create: declaration.documents.map(doc => ({
+          create: declaration.documents.map((doc: Document) => ({
             type: doc.type,
             url: doc.url
           }))

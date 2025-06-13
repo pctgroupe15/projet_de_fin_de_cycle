@@ -192,13 +192,12 @@ export default function AgentDashboardPage() {
                         <div className="flex justify-between items-center mb-2">
                           <p className="text-sm text-muted-foreground">Progression</p>
                           <p className="text-sm text-muted-foreground">
-                            {Math.round((section.stats.pending / section.stats.total) * 100)}%
+                            {section.stats.total > 0 ? Math.round((section.stats.pending / section.stats.total) * 100) : 0}%
                           </p>
                         </div>
                         <Progress 
-                          value={Math.round((section.stats.pending / section.stats.total) * 100)}
+                          value={section.stats.total > 0 ? Math.round((section.stats.pending / section.stats.total) * 100) : 0}
                           max={100}
-                          className="h-2"
                         />
                       </div>
                     )}

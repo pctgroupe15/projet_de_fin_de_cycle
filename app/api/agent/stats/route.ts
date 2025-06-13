@@ -3,6 +3,20 @@ import { getServerSession } from 'next-auth';
 import { prisma } from '@/lib/prisma';
 import { authOptions } from '@/lib/auth';
 
+interface RecentRequest {
+  id: string;
+  status: string;
+  createdAt: Date;
+  citizen: {
+    email: string;
+  };
+}
+
+interface StatByDay {
+  createdAt: Date;
+  _count: number;
+}
+
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
@@ -80,7 +94,7 @@ export async function GET() {
     });
 
     // Formater les demandes récentes
-    const formattedRecentRequests = recentRequests.map(request => ({
+    const formattedRecentRequests = recentRequests.map((request: RecentRequest) => ({
       _id: request.id,
       documentType: 'birth_certificate',
       status: request.status,
@@ -103,7 +117,7 @@ export async function GET() {
     });
 
     // Formater les statistiques par jour
-    const formattedStatsByDay = statsByDay.map(stat => ({
+    const formattedStatsByDay = statsByDay.map((stat: StatByDay) => ({
       _id: stat.createdAt.toISOString(),
       count: stat._count
     }));

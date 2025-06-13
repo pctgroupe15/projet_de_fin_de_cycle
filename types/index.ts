@@ -1,9 +1,46 @@
-import { Payment, BirthDeclaration, BirthCertificate, Citizen, RequestStatus } from '@prisma/client'
-
 // Types de base pour les relations communes
 export type CitizenWithBasicInfo = {
   name: string | null
   email: string
+}
+
+export enum RequestStatus {
+  PENDING = 'en_attente',
+  COMPLETED = 'approuvé',
+  REJECTED = 'rejeté'
+}
+
+interface Payment {
+  id: string;
+  amount: number;
+  status: 'PENDING' | 'PAID' | 'FAILED';
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+interface BirthDeclaration {
+  id: string;
+  childFirstName: string;
+  childLastName: string;
+  status: RequestStatus;
+  createdAt: Date;
+  updatedAt: Date;
+  citizenId: string;
+}
+
+interface BirthCertificate {
+  id: string;
+  fullName: string;
+  status: RequestStatus;
+  createdAt: Date;
+  updatedAt: Date;
+  citizenId: string;
+}
+
+interface Citizen {
+  id: string;
+  name: string | null;
+  email: string;
 }
 
 // Types pour les documents avec les relations sélectionnées

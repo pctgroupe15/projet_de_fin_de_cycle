@@ -2,7 +2,13 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from '@/lib/prisma';
-import { RequestStatus } from '@prisma/client';
+import type { Prisma } from '@prisma/client';
+
+enum RequestStatus {
+  PENDING = 'PENDING',
+  COMPLETED = 'COMPLETED',
+  REJECTED = 'REJECTED'
+}
 
 export async function GET() {
   try {

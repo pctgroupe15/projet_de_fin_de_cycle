@@ -127,7 +127,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
       </div>
 
       {uploading && (
-        <Progress value={uploadProgress} className="w-full" />
+        <Progress value={uploadProgress || 0} max={100} className="w-full" />
       )}
 
       {value.length > 0 && (

@@ -2,7 +2,31 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { prisma } from '@/lib/prisma';
 import { authOptions } from '@/lib/auth';
-import { RequestStatus } from '@prisma/client';
+import type { Prisma } from '@prisma/client';
+
+type RequestStatus = 'PENDING' | 'COMPLETED' | 'REJECTED' | 'IN_PROGRESS';
+
+interface BirthCertificate {
+  id: string;
+  status: RequestStatus;
+  createdAt: Date;
+  updatedAt: Date;
+  citizenId: string;
+  fullName: string;
+  birthDate: Date;
+  birthPlace: string;
+  fatherFullName: string | null;
+  motherFullName: string | null;
+  acteNumber: string | null;
+  trackingNumber: string;
+  comment: string | null;
+}
+
+interface BirthDeclaration {
+  id: string;
+  status: RequestStatus;
+  createdAt: Date;
+}
 
 export async function GET() {
   try {
@@ -35,11 +59,11 @@ export async function GET() {
 
     // Combiner les demandes
     const allRequests = [
-      ...birthCertificates.map(cert => ({
+      ...birthCertificates.map((cert: BirthCertificate) => ({
         ...cert,
         documentType: 'birth_certificate'
       })),
-      ...birthDeclarations.map(decl => ({
+      ...birthDeclarations.map((decl: BirthDeclaration) => ({
         ...decl,
         documentType: 'birth_declaration'
       }))
@@ -48,9 +72,9 @@ export async function GET() {
     // Calculer les statistiques
     const totalRequests = allRequests.length;
     const lastMonthRequests = allRequests.filter(req => new Date(req.createdAt) >= lastMonth).length;
-    const pendingRequests = allRequests.filter(req => req.status === RequestStatus.PENDING).length;
-    const validatedRequests = allRequests.filter(req => req.status === RequestStatus.COMPLETED).length;
-    const rejectedRequests = allRequests.filter(req => req.status === RequestStatus.REJECTED).length;
+    const pendingRequests = allRequests.filter(req => req.status === 'PENDING').length;
+    const validatedRequests = allRequests.filter(req => req.status === 'COMPLETED').length;
+    const rejectedRequests = allRequests.filter(req => req.status === 'REJECTED').length;
 
     // Récupérer les demandes récentes (5 dernières)
     const recentRequests = allRequests

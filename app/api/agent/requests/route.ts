@@ -2,14 +2,50 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { BirthCertificate, BirthDeclaration, RequestStatus } from '@prisma/client';
+import type { Prisma } from '@prisma/client';
 
-type BirthCertificateWithCitizen = BirthCertificate & {
+type RequestStatus = 'PENDING' | 'COMPLETED' | 'REJECTED' | 'IN_PROGRESS';
+
+interface BirthCertificate {
+  id: string;
+  fullName: string;
+  birthDate: Date;
+  birthPlace: string;
+  status: RequestStatus;
+  createdAt: Date;
+  citizenId: string;
+}
+
+interface BirthDeclaration {
+  id: string;
+  childFirstName: string;
+  childLastName: string;
+  birthDate: Date;
+  birthPlace: string;
+  status: RequestStatus;
+  createdAt: Date;
+  citizenId: string;
+}
+
+interface BirthCertificateWithCitizen {
+  id: string;
+  status: RequestStatus;
+  createdAt: Date;
+  updatedAt: Date;
+  citizenId: string;
+  fullName: string;
+  birthDate: Date;
+  birthPlace: string;
+  fatherFullName: string | null;
+  motherFullName: string | null;
+  acteNumber: string | null;
+  trackingNumber: string;
+  comment: string | null;
   citizen: {
     name: string | null;
     email: string;
   };
-};
+}
 
 type BirthDeclarationWithCitizen = BirthDeclaration & {
   citizen: {
@@ -30,7 +66,7 @@ export async function GET() {
     const birthCertificates = await prisma.birthCertificate.findMany({
       where: {
         status: {
-          not: RequestStatus.REJECTED
+          not: 'REJECTED'
         }
       },
       include: {
@@ -50,7 +86,7 @@ export async function GET() {
     const birthDeclarations = await prisma.birthDeclaration.findMany({
       where: {
         status: {
-          not: RequestStatus.REJECTED
+          not: 'REJECTED'
         }
       },
       include: {
@@ -76,7 +112,7 @@ export async function GET() {
       status: cert.status,
       createdAt: cert.createdAt,
       citizen: {
-        name: cert.citizen.name || 'N/A',
+        name: cert.citizen.name,
         email: cert.citizen.email
       }
     }));

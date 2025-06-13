@@ -2,7 +2,45 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { BirthCertificate, BirthDeclaration, Document } from '@prisma/client';
+
+interface BirthCertificate {
+  id: string;
+  fullName: string;
+  birthDate: Date;
+  birthPlace: string;
+  fatherFullName?: string | null;
+  motherFullName?: string | null;
+  status: string;
+  trackingNumber: string;
+  comment?: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+  citizenId: string;
+}
+
+interface BirthDeclaration {
+  id: string;
+  childFirstName: string;
+  childLastName: string;
+  birthDate: Date;
+  birthPlace: string;
+  fatherFirstName: string;
+  fatherLastName: string;
+  motherFirstName: string;
+  motherLastName: string;
+  status: string;
+  createdAt: Date;
+  updatedAt: Date;
+  citizenId: string;
+}
+
+interface Document {
+  id: string;
+  type: string;
+  url: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
 
 type BirthCertificateWithFiles = BirthCertificate & {
   files: Document[];
@@ -93,7 +131,7 @@ export async function GET(
         comment: birthCertificate.comment,
         createdAt: birthCertificate.createdAt,
         updatedAt: birthCertificate.updatedAt,
-        files: birthCertificate.files.map(file => ({
+        files: birthCertificate.files.map((file: DocumentFile) => ({
           id: file.id,
           type: file.type,
           url: file.url,
@@ -135,7 +173,7 @@ export async function GET(
         rejectReason: (birthDeclaration as any).rejectReason,
         createdAt: birthDeclaration.createdAt,
         updatedAt: birthDeclaration.updatedAt,
-        files: birthDeclaration.documents.map(doc => ({
+        files: birthDeclaration.documents.map((doc: DocumentFile) => ({
           id: doc.id,
           type: doc.type,
           url: doc.url,

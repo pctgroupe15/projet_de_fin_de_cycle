@@ -4,6 +4,28 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 
+interface BaseUser {
+  id: string;
+  name?: string | null;
+  email: string;
+  role: string;
+  status: string;
+  createdAt: Date;
+}
+
+interface Citizen extends BaseUser {
+  role: string;
+}
+
+interface Agent extends BaseUser {
+  firstName: string;
+  lastName: string;
+}
+
+interface Admin extends BaseUser {
+  name: string | null;
+}
+
 // GET - Récupérer tous les utilisateurs
 export async function GET(request: Request) {
   try {
@@ -67,15 +89,15 @@ export async function GET(request: Request) {
 
     // Combiner tous les utilisateurs avec un format cohérent
     const users = [
-      ...citizens.map(user => ({
+      ...citizens.map((user: Citizen) => ({
         ...user,
         displayName: user.name || "Sans nom",
       })),
-      ...agents.map(user => ({
+      ...agents.map((user: Agent) => ({
         ...user,
         displayName: `${user.firstName} ${user.lastName}`,
       })),
-      ...admins.map(user => ({
+      ...admins.map((user: Admin) => ({
         ...user,
         displayName: user.name || "Sans nom",
       })),

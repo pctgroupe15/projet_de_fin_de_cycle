@@ -3,6 +3,36 @@ import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 
+interface BirthCertificate {
+  id: string;
+  fullName: string;
+  birthDate: Date;
+  birthPlace: string;
+  fatherFullName?: string | null;
+  motherFullName?: string | null;
+  status: string;
+  trackingNumber: string;
+  createdAt: Date;
+  updatedAt: Date;
+  files: Array<{ type: string; url: string }>;
+}
+
+interface BirthDeclaration {
+  id: string;
+  childFirstName: string;
+  childLastName: string;
+  birthDate: Date;
+  birthPlace: string;
+  fatherFirstName: string;
+  fatherLastName: string;
+  motherFirstName: string;
+  motherLastName: string;
+  status: string;
+  createdAt: Date;
+  updatedAt: Date;
+  documents: Array<{ type: string; url: string }>;
+}
+
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
@@ -42,7 +72,7 @@ export async function GET() {
 
     // Combiner et formater les documents
     const documents = [
-      ...birthCertificates.map(cert => ({
+      ...birthCertificates.map((cert: BirthCertificate) => ({
         id: cert.id,
         documentType: 'birth_certificate',
         fullName: cert.fullName,
@@ -56,7 +86,7 @@ export async function GET() {
         updatedAt: cert.updatedAt,
         files: cert.files
       })),
-      ...birthDeclarations.map(decl => ({
+      ...birthDeclarations.map((decl: BirthDeclaration) => ({
         id: decl.id,
         documentType: 'birth_declaration',
         fullName: `${decl.childFirstName} ${decl.childLastName}`,
@@ -68,7 +98,7 @@ export async function GET() {
         trackingNumber: decl.id,
         createdAt: decl.createdAt,
         updatedAt: decl.updatedAt,
-        files: decl.documents.map(doc => ({
+        files: decl.documents.map((doc: { type: string; url: string }) => ({
           type: doc.type,
           url: doc.url
         }))

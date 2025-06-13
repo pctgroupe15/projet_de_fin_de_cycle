@@ -4,6 +4,15 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { UserRole } from "@/types/user";
 
+interface DocumentWithCitizen {
+  id: string;
+  status: string;
+  createdAt: Date;
+  updatedAt: Date;
+  citizenId: string;
+  citizen: { name: string | null; };
+}
+
 // GET - Récupérer tous les documents
 export async function GET() {
   try {
@@ -54,7 +63,7 @@ export async function GET() {
 
     // Transformer les données pour un format uniforme
     const documents = [
-      ...birthDeclarations.map((doc) => ({
+      ...birthDeclarations.map((doc: DocumentWithCitizen) => ({
         id: doc.id,
         type: "BirthDeclaration",
         status: doc.status,
@@ -63,7 +72,7 @@ export async function GET() {
         citizenId: doc.citizenId,
         citizenName: doc.citizen.name,
       })),
-      ...birthCertificates.map((doc) => ({
+      ...birthCertificates.map((doc: DocumentWithCitizen) => ({
         id: doc.id,
         type: "BirthCertificate",
         status: doc.status,

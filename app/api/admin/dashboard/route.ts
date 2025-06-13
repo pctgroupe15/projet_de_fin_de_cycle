@@ -3,6 +3,39 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
+interface RequestWithCitizen {
+  id: string;
+  status: string;
+  createdAt: Date;
+  childFirstName: string;
+  childLastName: string;
+  citizen: { 
+    name: string | null; 
+    email: string; };
+}
+
+interface PaymentWithDetails {
+  id: string;
+  amount: number;
+  status: string;
+  createdAt: Date;
+  birthDeclaration?: { 
+    childFirstName: string;
+    childLastName: string;
+    citizen: { 
+      name: string | null; 
+      email: string; 
+    }
+  } | null;
+  birthCertificate?: {
+    fullName: string;
+    citizen: { 
+      name: string | null; 
+      email: string; 
+    }
+  } | null;
+}
+
 export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions);
@@ -190,7 +223,7 @@ export async function GET(request: Request) {
         total: totalAgents,
         active: activeAgents,
       },
-      recentRequests: recentRequests.map(request => ({
+      recentRequests: recentRequests.map((request: RequestWithCitizen) => ({
         id: request.id,
         type: "Déclaration de naissance",
         status: request.status,
@@ -199,7 +232,7 @@ export async function GET(request: Request) {
         citizen: request.citizen.name,
         email: request.citizen.email,
       })),
-      recentPayments: recentPayments.map(payment => ({
+      recentPayments: recentPayments.map((payment: PaymentWithDetails) => ({
         id: payment.id,
         amount: payment.amount,
         status: payment.status,

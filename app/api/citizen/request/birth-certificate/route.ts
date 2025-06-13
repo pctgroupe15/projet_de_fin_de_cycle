@@ -3,7 +3,12 @@ import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { nanoid } from 'nanoid';
-import { RequestStatus } from '@prisma/client';
+
+enum RequestStatus {
+  PENDING = 'en_attente',
+  COMPLETED = 'approuvé',
+  REJECTED = 'rejeté'
+}
 
 export async function POST(request: Request) {
   try {
@@ -44,7 +49,7 @@ export async function POST(request: Request) {
         fatherFullName: fatherFullName || null,
         motherFullName: motherFullName || null,
         acteNumber: acteNumber || null,
-        status: RequestStatus.PENDING,
+        status: 'PENDING',
         trackingNumber: nanoid(10),
         files: {
           create: [

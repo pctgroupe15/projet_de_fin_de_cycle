@@ -4,6 +4,28 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Parser } from "json2csv";
 
+interface PaymentWithDetails {
+  id: string;
+  amount: number;
+  status: string;
+  createdAt: Date;
+  birthDeclaration: {
+    childFirstName: string;
+    childLastName: string;
+    citizen: {
+      name: string | null;
+      email: string;
+    };
+  } | null;
+  birthCertificate: {
+    fullName: string;
+    citizen: {
+      name: string | null;
+      email: string;
+    };
+  } | null;
+}
+
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
@@ -82,7 +104,7 @@ export async function POST(request: Request) {
     });
 
     // Transformer les données pour le CSV
-    const csvData = payments.map((payment) => ({
+    const csvData = payments.map((payment: PaymentWithDetails) => ({
       ID: payment.id,
       "Nom du citoyen": payment.birthDeclaration?.citizen.name || payment.birthCertificate?.citizen.name,
       "Email du citoyen": payment.birthDeclaration?.citizen.email || payment.birthCertificate?.citizen.email,
