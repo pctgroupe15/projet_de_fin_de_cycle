@@ -96,7 +96,7 @@ export function CitizenLayout({ children }: CitizenLayoutProps) {
             <Link href="/">
               <div className="flex items-center gap-2">
                 <FileText className="h-6 w-6 text-primary" />
-                <span className="font-bold text-xl">DocService</span>
+                <span className="font-bold text-xl">MyAdminHome</span>
               </div>
             </Link>
           </div>

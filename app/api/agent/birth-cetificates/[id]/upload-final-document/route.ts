@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { getDb } from '@/lib/mongodb';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { v2 as cloudinary } from 'cloudinary';
-import { UploadApiResponse } from 'cloudinary';
+import { ObjectId } from 'mongodb';
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -57,29 +57,33 @@ export async function POST(
           }
         }
       ).end(buffer);
-    })) as UploadApiResponse;
+    })) as any;
 
     const fileUrl = uploadResult.secure_url;
-    const fileType = uploadResult.resource_type; // or infer from file.type if needed
+    const fileType = uploadResult.resource_type;
 
-    // Update the BirthCertificate document with the new file
-    const updatedRequest = await prisma.birthCertificate.update({
-      where: { id: requestId },
-      data: {
-        files: {
-          push: {
-            id: uploadResult.public_id,
-            type: 'acte_naissance_final',
-            url: fileUrl,
-          },
-        },
-      },
+    const db = await getDb();
+    // Créer le document final dans la collection Document
+    const documentInsert = await db.collection('Document').insertOne({
+      type: 'ACTE_NAISSANCE_FINAL',
+      url: fileUrl,
+      birthCertificateId: new ObjectId(requestId),
+      createdAt: new Date(),
+      updatedAt: new Date(),
     });
+    const document = await db.collection('Document').findOne({ _id: documentInsert.insertedId });
+
+    if (!document) {
+      return NextResponse.json(
+        { success: false, message: 'Erreur lors de la création du document.' },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json({
       success: true,
       message: 'Document final téléversé avec succès.',
-      data: updatedRequest,
+      data: document,
     });
   } catch (error) {
     console.error('Error uploading final document:', error);

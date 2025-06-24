@@ -133,7 +133,13 @@ export default function BirthCertificatesPage() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => router.push(`/agent/documents/${certificate.id}`)}
+                          onClick={() => {
+                            if (!certificate.id) {
+                              toast.error("ID de l'acte manquant !");
+                              return;
+                            }
+                            router.push(`/agent/documents/${certificate.id}`);
+                          }}
                         >
                           <Eye className="h-4 w-4 mr-2" />
                           Voir détails

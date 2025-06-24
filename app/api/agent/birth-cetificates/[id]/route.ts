@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { getDb } from '@/lib/mongodb';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { ObjectId } from 'mongodb';
 
 export async function GET(
   request: Request,
@@ -17,18 +18,23 @@ export async function GET(
       );
     }
 
-    const request = await prisma.birthCertificate.findUnique({
-      where: { id: params.id },
-      include: {
-        citizen: {
-          select: {
-            name: true,
-            email: true
-          }
-        },
-        files: true
-      }
-    });
+    const db = await getDb();
+    const requestArr = await db.collection('BirthCertificate').aggregate([
+      { $match: { _id: new ObjectId(params.id) } },
+      { $lookup: {
+          from: 'Citizen',
+          localField: 'citizenId',
+          foreignField: '_id',
+          as: 'citizenArr'
+        }
+      },
+      { $addFields: {
+          citizen: { $arrayElemAt: ['$citizenArr', 0] }
+        }
+      },
+      { $project: { citizenArr: 0 } }
+    ]).toArray();
+    const request = requestArr[0];
 
     if (!request) {
       return NextResponse.json(

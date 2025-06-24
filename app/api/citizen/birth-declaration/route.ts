@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { nanoid } from 'nanoid';
+import { getDb } from '@/lib/mongodb';
+import { ObjectId } from 'mongodb';
 
 export async function POST(request: Request) {
   try {
@@ -26,7 +27,8 @@ export async function POST(request: Request) {
       'gender',
       'fatherName',
       'motherName',
-      'receptionMode'
+      'receptionMode',
+      'communeId'
     ];
 
     for (const field of requiredFields) {
@@ -50,45 +52,87 @@ export async function POST(request: Request) {
       );
     }
 
+    // Le citoyen doit renseigner la commune (communeId)
+    if (!data.communeId) {
+      return NextResponse.json(
+        { success: false, error: 'La commune est requise' },
+        { status: 400 }
+      );
+    }
+
+    const db = await getDb();
+    // Trouver l'agent de la commune
+    const agent = await db.collection('Agent').findOne({ communeId: new ObjectId(data.communeId) });
+    if (!agent) {
+      return NextResponse.json(
+        { success: false, error: 'Aucun agent trouvé pour la commune sélectionnée' },
+        { status: 400 }
+      );
+    }
+
     // Créer la déclaration de naissance dans la base de données
-    const birthDeclaration = await prisma.birthDeclaration.create({
-      data: {
-        citizenId: session.user.id,
-        childFirstName,
-        childLastName,
-        childGender: data.gender,
-        birthDate: new Date(data.birthDate),
-        birthPlace: data.birthPlace,
-        fatherFirstName,
-        fatherLastName,
-        motherFirstName,
-        motherLastName,
-        status: 'PENDING',
-        documents: {
-          create: [
-            ...(data.documents?.map((doc: any) => ({
-              type: doc.type || 'DOCUMENT',
-              url: doc.url
-            })) || []),
-            // Stocker le mode de réception et l'adresse dans un document
-            {
-              type: 'DELIVERY_INFO',
-              url: JSON.stringify({
-                mode: data.receptionMode,
-                address: data.deliveryAddress
-              })
-            }
-          ]
-        }
-      },
-      include: {
-        documents: true
+    const birthDeclarationDoc = {
+      citizenId: new ObjectId(session.user.id),
+      childFirstName,
+      childLastName,
+      childGender: data.gender,
+      birthDate: new Date(data.birthDate),
+      birthPlace: data.birthPlace,
+      fatherFirstName,
+      fatherLastName,
+      motherFirstName,
+      motherLastName,
+      status: 'PENDING',
+      communeId: new ObjectId(data.communeId),
+      agentId: agent._id,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    const result = await db.collection('BirthDeclaration').insertOne(birthDeclarationDoc);
+    const birthDeclarationId = result.insertedId;
+
+    // Ajout des documents associés
+    const documents = [
+      ...((data.documents?.map((doc: any) => ({
+        birthDeclarationId,
+        type: doc.type || 'DOCUMENT',
+        url: doc.url,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })) || [])),
+      {
+        birthDeclarationId,
+        type: 'DELIVERY_INFO',
+        url: JSON.stringify({
+          mode: data.receptionMode,
+          address: data.deliveryAddress
+        }),
+        createdAt: new Date(),
+        updatedAt: new Date(),
       }
-    });
+    ];
+    if (documents.length > 0) {
+      await db.collection('Document').insertMany(documents);
+    }
+
+    // Retourner la déclaration avec les documents
+    const birthDeclaration = await db.collection('BirthDeclaration').findOne({ _id: birthDeclarationId });
+    const birthDeclarationDocuments = await db.collection('Document').find({ birthDeclarationId }).toArray();
+
+    if (!birthDeclaration) {
+      return NextResponse.json(
+        { success: false, error: 'Erreur lors de la création de la déclaration' },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json({
       success: true,
-      data: birthDeclaration
+      data: {
+        id: birthDeclaration._id.toString(),
+        ...birthDeclaration,
+        documents: birthDeclarationDocuments
+      }
     });
   } catch (error) {
     console.error('Error creating birth declaration:', error);

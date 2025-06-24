@@ -1,3 +1,5 @@
+import { ObjectId } from 'mongodb';
+
 export enum RequestStatus {
   PENDING = 'PENDING',
   IN_PROGRESS = 'IN_PROGRESS',
@@ -13,8 +15,8 @@ export enum RequestType {
   OTHER = 'OTHER'
 }
 
-export interface Request {
-  _id?: string;
+export interface RequestData {
+  _id?: ObjectId;
   userId: string;
   type: RequestType;
   status: RequestStatus;

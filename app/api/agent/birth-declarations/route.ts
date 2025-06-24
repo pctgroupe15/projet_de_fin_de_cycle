@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { getDb } from '@/lib/mongodb';
 
 export async function GET() {
   try {
@@ -11,21 +11,40 @@ export async function GET() {
       return new NextResponse("Non autorisé", { status: 401 });
     }
 
-    const birthDeclarations = await prisma.birthDeclaration.findMany({
-      include: {
-        citizen: {
-          select: {
-            name: true,
-            email: true,
-          },
-        },
-        documents: true,
-        payment: true
+    const db = await getDb();
+    const birthDeclarations = await db.collection('BirthDeclaration').aggregate([
+      { $sort: { createdAt: -1 } },
+      { $lookup: {
+          from: 'Citizen',
+          localField: 'citizenId',
+          foreignField: '_id',
+          as: 'citizenArr'
+        }
       },
-      orderBy: {
-        createdAt: "desc",
+      { $addFields: {
+          citizen: { $arrayElemAt: ['$citizenArr', 0] }
+        }
       },
-    });
+      { $lookup: {
+          from: 'Document',
+          localField: '_id',
+          foreignField: 'birthDeclarationId',
+          as: 'documents'
+        }
+      },
+      { $lookup: {
+          from: 'Payment',
+          localField: '_id',
+          foreignField: 'birthDeclarationId',
+          as: 'paymentArr'
+        }
+      },
+      { $addFields: {
+          payment: { $arrayElemAt: ['$paymentArr', 0] }
+        }
+      },
+      { $project: { citizenArr: 0, paymentArr: 0 } }
+    ]).toArray();
 
     return NextResponse.json({
       success: true,

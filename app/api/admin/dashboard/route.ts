@@ -1,7 +1,42 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { getDb } from '@/lib/mongodb';
+import { ObjectId } from 'mongodb';
+
+interface RecentRequest {
+  id: string;
+  status: string;
+  createdAt: Date;
+  childFirstName: string;
+  childLastName: string;
+  citizen: {
+    name: string;
+    email: string;
+  };
+}
+
+interface RecentPayment {
+  id: string;
+  amount: number;
+  status: string;
+  createdAt: Date;
+  birthDeclaration?: {
+    childFirstName: string;
+    childLastName: string;
+    citizen: {
+      name: string;
+      email: string;
+    };
+  };
+  birthCertificate?: {
+    fullName: string;
+    citizen: {
+      name: string;
+      email: string;
+    };
+  };
+}
 
 export async function GET(request: Request) {
   try {
@@ -20,7 +55,6 @@ export async function GET(request: Request) {
     const now = new Date();
     let startDate = new Date();
 
-    // Définir la période en fonction du timeRange
     switch (timeRange) {
       case "today":
         startDate.setHours(0, 0, 0, 0);
@@ -35,190 +69,125 @@ export async function GET(request: Request) {
         startDate.setFullYear(now.getFullYear() - 1);
         break;
       default:
-        startDate.setDate(now.getDate() - 7); // Par défaut, une semaine
+        startDate.setDate(now.getDate() - 7);
     }
 
-    // Récupérer les statistiques des utilisateurs
+    const db = await getDb();
+
     const [totalUsers, activeUsers, newUsers] = await Promise.all([
-      prisma.citizen.count(),
-      prisma.citizen.count({
-        where: { status: "active" },
-      }),
-      prisma.citizen.count({
-        where: {
-          createdAt: {
-            gte: startDate,
-            lte: now,
-          },
-        },
+      db.collection('Citizen').countDocuments(),
+      db.collection('Citizen').countDocuments({ status: "active" }),
+      db.collection('Citizen').countDocuments({
+        createdAt: { $gte: startDate, $lte: now },
       }),
     ]);
 
-    // Récupérer les statistiques des documents
     const [totalDeclarations, totalCertificates, pendingDeclarations, pendingCertificates, completedDeclarations, completedCertificates] = await Promise.all([
-      prisma.birthDeclaration.count(),
-      prisma.birthCertificate.count(),
-      prisma.birthDeclaration.count({
-        where: { status: "PENDING" },
-      }),
-      prisma.birthCertificate.count({
-        where: { status: "PENDING" },
-      }),
-      prisma.birthDeclaration.count({
-        where: { status: "COMPLETED" },
-      }),
-      prisma.birthCertificate.count({
-        where: { status: "COMPLETED" },
-      }),
+      db.collection('BirthDeclaration').countDocuments(),
+      db.collection('BirthCertificate').countDocuments(),
+      db.collection('BirthDeclaration').countDocuments({ status: "PENDING" }),
+      db.collection('BirthCertificate').countDocuments({ status: "PENDING" }),
+      db.collection('BirthDeclaration').countDocuments({ status: "COMPLETED" }),
+      db.collection('BirthCertificate').countDocuments({ status: "COMPLETED" }),
     ]);
 
-    // Récupérer les statistiques des paiements
-    const [totalPayments, totalAmount, pendingPayments] = await Promise.all([
-      prisma.payment.count({
-        where: {
-          createdAt: {
-            gte: startDate,
-            lte: now,
-          },
-        },
+    const [totalPayments, totalAmountAgg, pendingPayments] = await Promise.all([
+      db.collection('Payment').countDocuments({
+        createdAt: { $gte: startDate, $lte: now },
       }),
-      prisma.payment.aggregate({
-        where: {
-          status: "PAID",
-          createdAt: {
-            gte: startDate,
-            lte: now,
-          },
-        },
-        _sum: {
-          amount: true,
-        },
-      }),
-      prisma.payment.count({
-        where: {
-          status: "PENDING",
-        },
-      }),
+      db.collection('Payment').aggregate([
+        { $match: { status: "PAID", createdAt: { $gte: startDate, $lte: now } } },
+        { $group: { _id: null, total: { $sum: "$amount" } } }
+      ]).toArray(),
+      db.collection('Payment').countDocuments({ status: "PENDING" }),
     ]);
+    const totalAmount = totalAmountAgg[0]?.total || 0;
 
-    // Récupérer les statistiques des agents
     const [totalAgents, activeAgents] = await Promise.all([
-      prisma.agent.count(),
-      prisma.agent.count({
-        where: { status: "active" },
-      }),
+      db.collection('Agent').countDocuments(),
+      db.collection('Agent').countDocuments({ status: "active" }),
     ]);
 
-    // Récupérer les requêtes récentes
-    const recentRequests = await prisma.birthDeclaration.findMany({
-      take: 5,
-      orderBy: {
-        createdAt: "desc",
+    const recentRequests = await db.collection('BirthDeclaration').aggregate([
+      { $sort: { createdAt: -1 } },
+      { $limit: 5 },
+      { $lookup: {
+          from: 'Citizen',
+          localField: 'citizenId',
+          foreignField: '_id',
+          as: 'citizenArr'
+        }
       },
-      select: {
-        id: true,
-        status: true,
-        createdAt: true,
-        childFirstName: true,
-        childLastName: true,
-        citizen: {
-          select: {
-            name: true,
-            email: true,
-          },
-        },
+      { $addFields: {
+          citizen: { $arrayElemAt: ['$citizenArr', 0] }
+        }
       },
-    });
+      { $project: { citizenArr: 0 } }
+    ]).toArray();
 
-    // Récupérer les paiements récents
-    const recentPayments = await prisma.payment.findMany({
-      take: 5,
-      orderBy: {
-        createdAt: "desc",
+    const recentPayments = await db.collection('Payment').aggregate([
+      { $sort: { createdAt: -1 } },
+      { $limit: 5 },
+      { $lookup: {
+          from: 'BirthDeclaration',
+          localField: 'birthDeclarationId',
+          foreignField: '_id',
+          as: 'birthDeclarationArr'
+        }
       },
-      select: {
-        id: true,
-        amount: true,
-        status: true,
-        createdAt: true,
-        birthDeclaration: {
-          select: {
-            childFirstName: true,
-            childLastName: true,
-            citizen: {
-              select: {
-                name: true,
-                email: true,
-              },
-            },
-          },
-        },
-        birthCertificate: {
-          select: {
-            fullName: true,
-            citizen: {
-              select: {
-                name: true,
-                email: true,
-              },
-            },
-          },
-        },
+      { $lookup: {
+          from: 'BirthCertificate',
+          localField: 'birthCertificateId',
+          foreignField: '_id',
+          as: 'birthCertificateArr'
+        }
       },
-    });
+      { $addFields: {
+          birthDeclaration: { $arrayElemAt: ['$birthDeclarationArr', 0] },
+          birthCertificate: { $arrayElemAt: ['$birthCertificateArr', 0] }
+        }
+      },
+      { $project: { birthDeclarationArr: 0, birthCertificateArr: 0 } }
+    ]).toArray();
 
-    // Formater les données pour le tableau de bord
     const stats = {
       users: {
         total: totalUsers,
         active: activeUsers,
         new: newUsers,
       },
-      documents: {
-        declarations: totalDeclarations,
-        certificates: totalCertificates,
-        total: totalDeclarations + totalCertificates,
-        pending: pendingDeclarations + pendingCertificates,
-        completed: completedDeclarations + completedCertificates,
+      declarations: {
+        total: totalDeclarations,
+        pending: pendingDeclarations,
+        completed: completedDeclarations,
+      },
+      certificates: {
+        total: totalCertificates,
+        pending: pendingCertificates,
+        completed: completedCertificates,
       },
       payments: {
         total: totalPayments,
-        amount: totalAmount._sum.amount || 0,
+        amount: totalAmount,
         pending: pendingPayments,
       },
       agents: {
         total: totalAgents,
         active: activeAgents,
       },
-      recentRequests: recentRequests.map(request => ({
-        id: request.id,
-        type: "Déclaration de naissance",
-        status: request.status,
-        createdAt: request.createdAt,
-        name: `${request.childFirstName} ${request.childLastName}`,
-        citizen: request.citizen.name,
-        email: request.citizen.email,
-      })),
-      recentPayments: recentPayments.map(payment => ({
-        id: payment.id,
-        amount: payment.amount,
-        status: payment.status,
-        createdAt: payment.createdAt,
-        type: payment.birthDeclaration ? "Déclaration de naissance" : "Acte de naissance",
-        name: payment.birthDeclaration 
-          ? `${payment.birthDeclaration.childFirstName} ${payment.birthDeclaration.childLastName}`
-          : payment.birthCertificate?.fullName || "Document inconnu",
-        citizen: payment.birthDeclaration?.citizen.name || payment.birthCertificate?.citizen.name || "Citoyen inconnu",
-        email: payment.birthDeclaration?.citizen.email || payment.birthCertificate?.citizen.email || "Email inconnu",
-      })),
+      recentRequests,
+      recentPayments,
     };
 
-    return NextResponse.json(stats);
+    return NextResponse.json({
+      success: true,
+      data: stats,
+    });
   } catch (error) {
-    console.error("Error fetching dashboard stats:", error);
+    console.error("Error fetching dashboard data:", error);
     return NextResponse.json(
-      { success: false, message: "Erreur lors de la récupération des statistiques" },
+      { success: false, message: "Erreur lors de la récupération des données du dashboard" },
       { status: 500 }
     );
   }
-} 
+}

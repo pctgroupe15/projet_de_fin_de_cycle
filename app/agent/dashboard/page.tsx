@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -6,35 +6,27 @@ import { AgentLayout } from '@/components/layouts/agent-layout';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { FileText, FileCheck, FileSearch, Clock, CheckCircle, XCircle, ArrowRight } from "lucide-react";
+import { FileText, FileCheck, FileSearch, Clock, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 
 interface DashboardStats {
-  birthDeclarations: {
-    total: number;
-    pending: number;
-    approved: number;
-    rejected: number;
-  };
-  birthCertificates: {
-    total: number;
-    pending: number;
-    approved: number;
-    rejected: number;
-  };
-  documents: {
-    total: number;
-    pending: number;
-    approved: number;
-    rejected: number;
-  };
-  requests: {
-    total: number;
-    pending: number;
-    approved: number;
-    rejected: number;
-  };
+  birthDeclarations: { total: number; pending: number; approved: number; rejected: number; };
+  birthCertificates: { total: number; pending: number; approved: number; rejected: number; };
+  documents: { total: number; pending: number; approved: number; rejected: number; };
+  requests: { total: number; pending: number; approved: number; rejected: number; };
 }
+
+const bgColorMap: Record<string, string> = {
+  blue: "bg-blue-100",
+  green: "bg-green-100",
+  orange: "bg-orange-100"
+};
+
+const textColorMap: Record<string, string> = {
+  blue: "text-blue-600",
+  green: "text-green-600",
+  orange: "text-orange-600"
+};
 
 export default function AgentDashboardPage() {
   const [stats, setStats] = useState<DashboardStats>({
@@ -48,13 +40,7 @@ export default function AgentDashboardPage() {
 
   useEffect(() => {
     fetchStats();
-
-    // Rafraîchir les statistiques toutes les 30 secondes
-    const interval = setInterval(() => {
-      fetchStats();
-    }, 30000);
-
-    // Nettoyer l'intervalle lors du démontage du composant
+    const interval = setInterval(fetchStats, 30000);
     return () => clearInterval(interval);
   }, []);
 
@@ -62,14 +48,13 @@ export default function AgentDashboardPage() {
     try {
       const response = await fetch('/api/agent/dashboard/stats');
       const data = await response.json();
-      
       if (data.success) {
         setStats(data.data);
       } else {
         toast.error(data.message || 'Erreur lors de la récupération des statistiques');
       }
     } catch (error) {
-      console.error('Erreur lors de la récupération des statistiques:', error);
+      console.error('Erreur:', error);
       toast.error('Erreur lors de la récupération des statistiques');
     } finally {
       setLoading(false);
@@ -129,92 +114,85 @@ export default function AgentDashboardPage() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {sections.map((section, index) => (
-              <Card
-                key={index}
-                className="h-full hover:shadow-lg transition-all duration-300"
-              >
-                <CardHeader className="flex items-center justify-between">
-                  <div className="flex items-center">
-                    <div 
-                      className={`p-2.5 rounded-lg mr-3 bg-${section.color}-100 text-${section.color}-600`}
-                    >
-                      {section.icon}
-                    </div>
-                    <CardTitle className="text-lg">
-                      {section.title}
-                    </CardTitle>
-                  </div>
-                  <Badge 
-                    variant={section.stats.pending > 0 ? "destructive" : "success"}
-                    className="text-sm"
-                  >
-                    {section.stats.pending}
-                  </Badge>
-                </CardHeader>
+            {sections.map((section, index) => {
+              const { total, pending, approved, rejected } = section.stats;
+              const progressValue = total > 0 ? Math.round((pending / total) * 100) : 0;
 
-                <CardContent>
-                  <div className="space-y-6">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="text-center p-4 bg-muted rounded-lg">
-                        <p className="text-sm text-muted-foreground mb-1">Total</p>
-                        <p className={`text-2xl font-bold text-${section.color}-600`}>
-                          {section.stats.total}
-                        </p>
+              return (
+                <Card key={index} className="h-full hover:shadow-lg transition-all duration-300">
+                  <CardHeader className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <div className={`p-2.5 rounded-lg mr-3 ${bgColorMap[section.color]} ${textColorMap[section.color]}`}>
+                        {section.icon}
                       </div>
-                      <div className="text-center p-4 bg-muted rounded-lg">
-                        <p className="text-sm text-muted-foreground mb-1">En attente</p>
-                        <p className="text-2xl font-bold text-warning">
-                          {section.stats.pending}
-                        </p>
-                      </div>
+                      <CardTitle className="text-lg">{section.title}</CardTitle>
                     </div>
+                    <Badge variant={pending > 0 ? "destructive" : "success"} className="text-sm">
+                      {pending}
+                    </Badge>
+                  </CardHeader>
 
-                    {section.showApprovalStats && (
+                  <CardContent>
+                    <div className="space-y-6">
                       <div className="grid grid-cols-2 gap-4">
                         <div className="text-center p-4 bg-muted rounded-lg">
-                          <p className="text-sm text-muted-foreground mb-1">Approuvées</p>
-                          <p className="text-2xl font-bold text-success">
-                            {section.stats.approved}
+                          <p className="text-sm text-muted-foreground mb-1">Total</p>
+                          <p className={`text-2xl font-bold ${textColorMap[section.color]}`}>
+                            {total}
                           </p>
                         </div>
                         <div className="text-center p-4 bg-muted rounded-lg">
-                          <p className="text-sm text-muted-foreground mb-1">Rejetées</p>
-                          <p className="text-2xl font-bold text-destructive">
-                            {section.stats.rejected}
+                          <p className="text-sm text-muted-foreground mb-1">En attente</p>
+                          <p className="text-2xl font-bold text-warning">
+                            {pending}
                           </p>
                         </div>
                       </div>
-                    )}
 
-                    {section.stats.total > 0 && (
-                      <div>
-                        <div className="flex justify-between items-center mb-2">
-                          <p className="text-sm text-muted-foreground">Progression</p>
-                          <p className="text-sm text-muted-foreground">
-                            {Math.round((section.stats.pending / section.stats.total) * 100)}%
-                          </p>
+                      {section.showApprovalStats && (
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="text-center p-4 bg-muted rounded-lg">
+                            <p className="text-sm text-muted-foreground mb-1">Approuvées</p>
+                            <p className="text-2xl font-bold text-success">
+                              {approved}
+                            </p>
+                          </div>
+                          <div className="text-center p-4 bg-muted rounded-lg">
+                            <p className="text-sm text-muted-foreground mb-1">Rejetées</p>
+                            <p className="text-2xl font-bold text-destructive">
+                              {rejected}
+                            </p>
+                          </div>
                         </div>
-                        <Progress 
-                          value={Math.round((section.stats.pending / section.stats.total) * 100)}
-                          className={`h-2 bg-${section.color}-100`}
-                        />
-                      </div>
-                    )}
+                      )}
 
-                    <div className="flex justify-end">
-                      <button
-                        onClick={() => router.push(section.path)}
-                        className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-                      >
-                        Voir les détails
-                        <ArrowRight className="h-4 w-4" />
-                      </button>
+                      {total > 0 && (
+                        <div>
+                          <div className="flex justify-between items-center mb-2">
+                            <p className="text-sm text-muted-foreground">Progression</p>
+                            <p className="text-sm text-muted-foreground">{progressValue}%</p>
+                          </div>
+                          <Progress
+                            value={progressValue}
+                            className={`h-2 ${bgColorMap[section.color]}`}
+                          />
+                        </div>
+                      )}
+
+                      <div className="flex justify-end">
+                        <button
+                          onClick={() => router.push(section.path)}
+                          className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                          Voir les détails
+                          <ArrowRight className="h-4 w-4" />
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         </div>
       </div>

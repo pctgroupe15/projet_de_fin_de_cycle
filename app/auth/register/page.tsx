@@ -84,153 +84,184 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="container mx-auto py-10">
-      <div className="max-w-2xl mx-auto">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold">Inscription citoyen</h1>
-          <Link 
-            href="/auth/login" 
-            className="text-sm text-blue-600 hover:text-blue-800"
-          >
-            Déjà inscrit ? Se connecter
-          </Link>
-        </div>
-        
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <FormField
-                control={form.control}
-                name="nom"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Nom</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Dupont" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="prenom"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Prénom</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Jean" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="dateNaissance"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Date de naissance</FormLabel>
-                    <FormControl>
-                      <Input type="date" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="lieuNaissance"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Lieu de naissance</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Paris" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="adresse"
-                render={({ field }) => (
-                  <FormItem className="md:col-span-2">
-                    <FormLabel>Adresse</FormLabel>
-                    <FormControl>
-                      <Input placeholder="123 rue de la Paix" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="numeroTelephone"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Numéro de téléphone</FormLabel>
-                    <FormControl>
-                      <Input placeholder="+33612345678" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <Input type="email" placeholder="jean.dupont@email.com" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="password"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Mot de passe</FormLabel>
-                    <FormControl>
-                      <Input type="password" placeholder="••••••" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="confirmPassword"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Confirmer le mot de passe</FormLabel>
-                    <FormControl>
-                      <Input type="password" placeholder="••••••" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+    <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
+      <div className="container mx-auto py-6 px-4">
+        <div className="max-w-3xl mx-auto">
+          <div className="bg-card rounded-xl shadow-lg p-6 border animate-fadeIn">
+            <div className="flex flex-col items-center mb-6 space-y-3">
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
+                Inscription citoyen
+              </h1>
+              <p className="text-muted-foreground text-center text-sm">
+                Créez votre compte pour accéder à tous nos services administratifs
+              </p>
+              <Link 
+                href="/auth/login" 
+                className="text-sm text-primary hover:text-primary/80 transition-colors duration-200"
+              >
+                Déjà inscrit ? Se connecter
+              </Link>
             </div>
+            
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="nom"
+                    render={({ field }) => (
+                      <FormItem className="space-y-1.5">
+                        <FormLabel className="text-sm">Nom</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Dupont" {...field} className="h-9" />
+                        </FormControl>
+                        <FormMessage className="text-xs" />
+                      </FormItem>
+                    )}
+                  />
 
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? "Inscription en cours..." : "S'inscrire"}
-            </Button>
-          </form>
-        </Form>
+                  <FormField
+                    control={form.control}
+                    name="prenom"
+                    render={({ field }) => (
+                      <FormItem className="space-y-1.5">
+                        <FormLabel className="text-sm">Prénom</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Jean" {...field} className="h-9" />
+                        </FormControl>
+                        <FormMessage className="text-xs" />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="dateNaissance"
+                    render={({ field }) => (
+                      <FormItem className="space-y-1.5">
+                        <FormLabel className="text-sm">Date de naissance</FormLabel>
+                        <FormControl>
+                          <Input type="date" {...field} className="h-9" />
+                        </FormControl>
+                        <FormMessage className="text-xs" />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="lieuNaissance"
+                    render={({ field }) => (
+                      <FormItem className="space-y-1.5">
+                        <FormLabel className="text-sm">Lieu de naissance</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Paris" {...field} className="h-9" />
+                        </FormControl>
+                        <FormMessage className="text-xs" />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="adresse"
+                    render={({ field }) => (
+                      <FormItem className="md:col-span-2 space-y-1.5">
+                        <FormLabel className="text-sm">Adresse</FormLabel>
+                        <FormControl>
+                          <Input placeholder="123 rue de la Paix" {...field} className="h-9" />
+                        </FormControl>
+                        <FormMessage className="text-xs" />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="numeroTelephone"
+                    render={({ field }) => (
+                      <FormItem className="space-y-1.5">
+                        <FormLabel className="text-sm">Numéro de téléphone</FormLabel>
+                        <FormControl>
+                          <Input placeholder="+33612345678" {...field} className="h-9" />
+                        </FormControl>
+                        <FormMessage className="text-xs" />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem className="space-y-1.5">
+                        <FormLabel className="text-sm">Email</FormLabel>
+                        <FormControl>
+                          <Input type="email" placeholder="jean.dupont@email.com" {...field} className="h-9" />
+                        </FormControl>
+                        <FormMessage className="text-xs" />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="password"
+                    render={({ field }) => (
+                      <FormItem className="space-y-1.5">
+                        <FormLabel className="text-sm">Mot de passe</FormLabel>
+                        <FormControl>
+                          <Input type="password" placeholder="••••••" {...field} className="h-9" />
+                        </FormControl>
+                        <FormMessage className="text-xs" />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="confirmPassword"
+                    render={({ field }) => (
+                      <FormItem className="space-y-1.5">
+                        <FormLabel className="text-sm">Confirmer le mot de passe</FormLabel>
+                        <FormControl>
+                          <Input type="password" placeholder="••••••" {...field} className="h-9" />
+                        </FormControl>
+                        <FormMessage className="text-xs" />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <div className="flex gap-4 pt-2">
+                  <Button 
+                    type="submit" 
+                    className="flex-1 h-10 text-sm font-semibold bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 transition-all duration-200" 
+                    disabled={isLoading}
+                  >
+                    {isLoading ? (
+                      <div className="flex items-center gap-2">
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        <span>Inscription en cours...</span>
+                      </div>
+                    ) : (
+                      "S'inscrire"
+                    )}
+                  </Button>
+                  <Link href="/">
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      className="h-10 text-sm"
+                    >
+                      Annuler
+                    </Button>
+                  </Link>
+                </div>
+              </form>
+            </Form>
+          </div>
+        </div>
       </div>
     </div>
   );

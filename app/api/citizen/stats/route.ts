@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { prisma } from '@/lib/prisma';
+import { getDb } from '@/lib/mongodb';
 import { authOptions } from '@/lib/auth';
-import { RequestStatus } from '@prisma/client';
 
 export async function GET() {
   try {
@@ -19,50 +18,43 @@ export async function GET() {
     lastMonth.setMonth(lastMonth.getMonth() - 1);
     lastMonth.setHours(0, 0, 0, 0);
 
+    const db = await getDb();
     // Récupérer toutes les demandes du citoyen
     const [birthCertificates, birthDeclarations] = await Promise.all([
-      prisma.birthCertificate.findMany({
-        where: {
-          citizenId: session.user.id
-        }
-      }),
-      prisma.birthDeclaration.findMany({
-        where: {
-          citizenId: session.user.id
-        }
-      })
+      db.collection('BirthCertificate').find({ citizenId: session.user.id }).toArray(),
+      db.collection('BirthDeclaration').find({ citizenId: session.user.id }).toArray()
     ]);
 
     // Combiner les demandes
     const allRequests = [
       ...birthCertificates.map(cert => ({
-        ...cert,
+        ...(cert as any),
         documentType: 'birth_certificate'
       })),
       ...birthDeclarations.map(decl => ({
-        ...decl,
+        ...(decl as any),
         documentType: 'birth_declaration'
       }))
     ];
 
     // Calculer les statistiques
     const totalRequests = allRequests.length;
-    const lastMonthRequests = allRequests.filter(req => new Date(req.createdAt) >= lastMonth).length;
-    const pendingRequests = allRequests.filter(req => req.status === RequestStatus.PENDING).length;
-    const validatedRequests = allRequests.filter(req => req.status === RequestStatus.COMPLETED).length;
-    const rejectedRequests = allRequests.filter(req => req.status === RequestStatus.REJECTED).length;
+    const lastMonthRequests = allRequests.filter(req => new Date((req as any).createdAt) >= lastMonth).length;
+    const pendingRequests = allRequests.filter(req => (req as any).status === 'PENDING').length;
+    const validatedRequests = allRequests.filter(req => (req as any).status === 'COMPLETED').length;
+    const rejectedRequests = allRequests.filter(req => (req as any).status === 'REJECTED').length;
 
     // Récupérer les demandes récentes (5 dernières)
     const recentRequests = allRequests
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .sort((a, b) => new Date((b as any).createdAt).getTime() - new Date((a as any).createdAt).getTime())
       .slice(0, 5)
       .map(req => ({
-        _id: req.id,
-        documentType: req.documentType,
-        status: req.status,
-        createdAt: req.createdAt,
-        trackingNumber: 'trackingNumber' in req ? req.trackingNumber : null,
-        files: 'files' in req ? req.files : []
+        _id: (req as any)._id,
+        documentType: (req as any).documentType,
+        status: (req as any).status,
+        createdAt: (req as any).createdAt,
+        trackingNumber: 'trackingNumber' in req ? (req as any).trackingNumber : null,
+        files: 'files' in req ? (req as any).files : []
       }));
 
     return NextResponse.json({

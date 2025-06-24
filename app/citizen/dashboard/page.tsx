@@ -59,6 +59,12 @@ export default function CitizenDashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("all");
 
+  const statusMap: Record<string, string> = {
+    pending: 'PENDING',
+    validated: 'COMPLETED',
+    rejected: 'REJECTED'
+  };
+
   useEffect(() => {
     fetchStats();
   }, []);
@@ -128,7 +134,7 @@ export default function CitizenDashboard() {
       request._id.toLowerCase().includes(searchTerm.toLowerCase());
     
     if (activeTab === 'all') return matchesSearch;
-    return matchesSearch && request.status === activeTab;
+    return matchesSearch && request.status === statusMap[activeTab];
   });
 
   return (

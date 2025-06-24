@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { getDb } from '@/lib/mongodb';
+import { ObjectId } from 'mongodb';
 
 export async function GET() {
   try {
@@ -11,14 +12,10 @@ export async function GET() {
       return new NextResponse("Non autorisé", { status: 401 });
     }
 
-    const notifications = await prisma.notification.findMany({
-      where: {
-        citizenId: session.user.id,
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
-    });
+    const db = await getDb();
+    const notifications = await db.collection('Notification').find({
+      citizenId: new ObjectId(session.user.id)
+    }).sort({ createdAt: -1 }).toArray();
 
     return NextResponse.json(notifications);
   } catch (error) {
@@ -42,17 +39,22 @@ export async function PATCH(request: Request) {
       return new NextResponse("ID de notification manquant", { status: 400 });
     }
 
-    const notification = await prisma.notification.update({
-      where: {
-        id: notificationId,
-        citizenId: session.user.id,
+    const db = await getDb();
+    const notification = await db.collection('Notification').findOneAndUpdate(
+      {
+        _id: new ObjectId(notificationId),
+        citizenId: new ObjectId(session.user.id)
       },
-      data: {
-        status: "READ",
+      {
+        $set: { status: "READ" }
       },
-    });
+      { returnDocument: 'after' }
+    );
 
-    return NextResponse.json(notification);
+    if (!notification.value) {
+      return new NextResponse("Notification non trouvée", { status: 404 });
+    }
+    return NextResponse.json(notification.value);
   } catch (error) {
     console.error("[NOTIFICATIONS_PATCH]", error);
     return new NextResponse("Erreur interne", { status: 500 });

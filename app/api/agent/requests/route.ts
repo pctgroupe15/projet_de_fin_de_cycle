@@ -1,22 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
-import { BirthCertificate, BirthDeclaration } from '@prisma/client';
-
-type BirthCertificateWithCitizen = BirthCertificate & {
-  citizen: {
-    name: string | null;
-    email: string;
-  };
-};
-
-type BirthDeclarationWithCitizen = BirthDeclaration & {
-  citizen: {
-    name: string | null;
-    email: string;
-  };
-};
+import { getDb } from '@/lib/mongodb';
 
 export async function GET() {
   try {
@@ -26,49 +11,47 @@ export async function GET() {
       return new NextResponse("Non autorisé", { status: 401 });
     }
 
+    const db = await getDb();
+
     // Récupérer les actes de naissance
-    const birthCertificates = await prisma.birthCertificate.findMany({
-      where: {
-        status: {
-          not: 'DELETED'
+    const birthCertificates = await db.collection('BirthCertificate').aggregate([
+      { $match: { status: { $ne: 'REJECTED' } } },
+      { $sort: { createdAt: -1 } },
+      { $lookup: {
+          from: 'Citizen',
+          localField: 'citizenId',
+          foreignField: '_id',
+          as: 'citizenArr'
         }
       },
-      include: {
-        citizen: {
-          select: {
-            name: true,
-            email: true
-          }
+      { $addFields: {
+          citizen: { $arrayElemAt: ['$citizenArr', 0] }
         }
       },
-      orderBy: {
-        createdAt: 'desc'
-      }
-    });
+      { $project: { citizenArr: 0 } }
+    ]).toArray();
 
     // Récupérer les déclarations de naissance
-    const birthDeclarations = await prisma.birthDeclaration.findMany({
-      where: {
-        status: {
-          not: 'DELETED'
+    const birthDeclarations = await db.collection('BirthDeclaration').aggregate([
+      { $match: { status: { $ne: 'REJECTED' } } },
+      { $sort: { createdAt: -1 } },
+      { $lookup: {
+          from: 'Citizen',
+          localField: 'citizenId',
+          foreignField: '_id',
+          as: 'citizenArr'
         }
       },
-      include: {
-        citizen: {
-          select: {
-            name: true,
-            email: true
-          }
+      { $addFields: {
+          citizen: { $arrayElemAt: ['$citizenArr', 0] }
         }
       },
-      orderBy: {
-        createdAt: 'desc'
-      }
-    });
+      { $project: { citizenArr: 0 } }
+    ]).toArray();
 
     // Formater les données pour un affichage uniforme
-    const formattedBirthCertificates = birthCertificates.map((cert: BirthCertificateWithCitizen) => ({
-      id: cert.id,
+    const formattedBirthCertificates = birthCertificates.map((cert: any) => ({
+      id: cert._id.toString(),
       type: 'birth_certificate' as const,
       fullName: cert.fullName,
       birthDate: cert.birthDate,
@@ -76,13 +59,13 @@ export async function GET() {
       status: cert.status,
       createdAt: cert.createdAt,
       citizen: {
-        name: cert.citizen.name || 'N/A',
-        email: cert.citizen.email
+        name: cert.citizen?.name || 'N/A',
+        email: cert.citizen?.email || ''
       }
     }));
 
-    const formattedBirthDeclarations = birthDeclarations.map((decl: BirthDeclarationWithCitizen) => ({
-      id: decl.id,
+    const formattedBirthDeclarations = birthDeclarations.map((decl: any) => ({
+      id: decl._id.toString(),
       type: 'birth_declaration' as const,
       childFirstName: decl.childFirstName,
       childLastName: decl.childLastName,
@@ -91,14 +74,14 @@ export async function GET() {
       status: decl.status,
       createdAt: decl.createdAt,
       citizen: {
-        name: decl.citizen.name || 'N/A',
-        email: decl.citizen.email
+        name: decl.citizen?.name || 'N/A',
+        email: decl.citizen?.email || ''
       }
     }));
 
     // Combiner et trier toutes les demandes par date de création
     const allRequests = [...formattedBirthCertificates, ...formattedBirthDeclarations]
-      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
     return NextResponse.json({
       success: true,

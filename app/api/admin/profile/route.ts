@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { connectToDatabase } from '@/lib/mongodb';
+import { getDb } from '@/lib/mongodb';
 import bcrypt from 'bcryptjs';
 
 export async function GET() {
@@ -13,9 +13,9 @@ export async function GET() {
       );
     }
 
-    const { db } = await connectToDatabase();
-    const admin = await db.collection('administrators').findOne(
-      { email: session.user.email },
+    const db = await getDb();
+    const admin = await db.collection('User').findOne(
+      { email: session.user.email, role: 'admin' },
       { projection: { password: 0 } }
     );
 
@@ -47,10 +47,10 @@ export async function PUT(request: Request) {
     }
 
     const { name, email, currentPassword, newPassword } = await request.json();
-    const { db } = await connectToDatabase();
+    const db = await getDb();
 
     // Vérifier si l'administrateur existe
-    const admin = await db.collection('administrators').findOne({ email: session.user.email });
+    const admin = await db.collection('User').findOne({ email: session.user.email, role: 'admin' });
     if (!admin) {
       return NextResponse.json(
         { error: 'Administrateur non trouvé' },
@@ -77,8 +77,8 @@ export async function PUT(request: Request) {
 
       // Hasher le nouveau mot de passe
       const hashedPassword = await bcrypt.hash(newPassword, 10);
-      await db.collection('administrators').updateOne(
-        { email: session.user.email },
+      await db.collection('User').updateOne(
+        { email: session.user.email, role: 'admin' },
         { $set: { password: hashedPassword } }
       );
     }
@@ -88,7 +88,7 @@ export async function PUT(request: Request) {
     if (name) updateData.name = name;
     if (email && email !== session.user.email) {
       // Vérifier si l'email est déjà utilisé
-      const existingUser = await db.collection('administrators').findOne({ email });
+      const existingUser = await db.collection('User').findOne({ email });
       if (existingUser) {
         return NextResponse.json(
           { error: 'Cet email est déjà utilisé' },
@@ -99,15 +99,15 @@ export async function PUT(request: Request) {
     }
 
     if (Object.keys(updateData).length > 0) {
-      await db.collection('administrators').updateOne(
-        { email: session.user.email },
+      await db.collection('User').updateOne(
+        { email: session.user.email, role: 'admin' },
         { $set: updateData }
       );
     }
 
     // Récupérer les données mises à jour
-    const updatedAdmin = await db.collection('administrators').findOne(
-      { email: session.user.email },
+    const updatedAdmin = await db.collection('User').findOne(
+      { email: email || session.user.email, role: 'admin' },
       { projection: { password: 0 } }
     );
 

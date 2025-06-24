@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { getDb } from '@/lib/mongodb';
+import { ObjectId } from 'mongodb';
 
 export async function GET(
   request: Request,
@@ -17,22 +18,51 @@ export async function GET(
       );
     }
 
-    const requestDetails = await prisma.birthDeclaration.findUnique({
-      where: {
-        id: params.id,
-        citizenId: session.user.id
+    const db = await getDb();
+    const pipeline = [
+      { $match: { _id: new ObjectId(params.id), citizenId: new ObjectId(session.user.id) } },
+      { $lookup: {
+          from: 'Document',
+          localField: '_id',
+          foreignField: 'birthDeclarationId',
+          as: 'documents'
+        }
       },
-      include: {
-        documents: true,
-        payment: true,
-        agent: {
-          select: {
-            name: true,
-            email: true
+      { $lookup: {
+          from: 'Payment',
+          localField: '_id',
+          foreignField: 'birthDeclarationId',
+          as: 'paymentArr'
+        }
+      },
+      { $addFields: {
+          payment: { $arrayElemAt: ['$paymentArr', 0] }
+        }
+      },
+      { $lookup: {
+          from: 'Agent',
+          localField: 'agentId',
+          foreignField: '_id',
+          as: 'agentArr'
+        }
+      },
+      { $addFields: {
+          agent: {
+            $cond: [
+              { $gt: [ { $size: '$agentArr' }, 0 ] },
+              {
+                firstName: { $arrayElemAt: ['$agentArr.firstName', 0] },
+                lastName: { $arrayElemAt: ['$agentArr.lastName', 0] },
+                email: { $arrayElemAt: ['$agentArr.email', 0] }
+              },
+              null
+            ]
           }
         }
-      }
-    });
+      },
+      { $project: { paymentArr: 0, agentArr: 0 } }
+    ];
+    const requestDetails = await db.collection('BirthDeclaration').aggregate(pipeline).next();
 
     if (!requestDetails) {
       return NextResponse.json(

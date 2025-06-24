@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { prisma } from '@/lib/prisma';
-import { RequestStatus } from '@prisma/client';
+import { getDb } from '@/lib/mongodb';
+import { ObjectId } from 'mongodb';
 
 export async function GET() {
   try {
@@ -15,24 +15,39 @@ export async function GET() {
       );
     }
 
-    const birthCertificates = await prisma.birthCertificate.findMany({
-      include: {
-        citizen: {
-          select: {
-            name: true,
-            email: true,
-          },
-        },
-        files: true,
+    const db = await getDb();
+    const birthCertificates = await db.collection('BirthCertificate').aggregate([
+      { $sort: { createdAt: -1 } },
+      { $lookup: {
+          from: 'Citizen',
+          localField: 'citizenId',
+          foreignField: '_id',
+          as: 'citizenArr'
+        }
       },
-      orderBy: {
-        createdAt: "desc",
+      { $addFields: {
+          citizen: { $arrayElemAt: ['$citizenArr', 0] }
+        }
       },
-    });
+      { $lookup: {
+          from: 'Document',
+          localField: '_id',
+          foreignField: 'birthCertificateId',
+          as: 'files'
+        }
+      },
+      { $project: { citizenArr: 0 } }
+    ]).toArray();
+
+    // Transformer les données pour inclure l'ID dans le bon format
+    const transformedData = birthCertificates.map(doc => ({
+      id: doc._id.toString(),
+      ...doc
+    }));
 
     return NextResponse.json({
       success: true,
-      data: birthCertificates
+      data: transformedData
     });
   } catch (error) {
     console.error("[BIRTH_CERTIFICATES_GET]", error);
@@ -67,27 +82,36 @@ export async function PATCH(request: Request) {
     const data = await request.json();
     const { status, comment } = data;
 
-    if (!status || !Object.values(RequestStatus).includes(status as RequestStatus)) {
+    if (!status || !['PENDING', 'COMPLETED', 'REJECTED', 'IN_PROGRESS'].includes(status)) {
       return NextResponse.json(
         { success: false, message: "Statut invalide" },
         { status: 400 }
       );
     }
 
-    const birthCertificate = await prisma.birthCertificate.update({
-      where: {
-        id,
+    const db = await getDb();
+    const birthCertificate = await db.collection('BirthCertificate').findOneAndUpdate(
+      { _id: new ObjectId(id) },
+      {
+        $set: {
+          status,
+          comment: comment || null,
+          agentId: session.user.id,
+        }
       },
-      data: {
-        status: status as RequestStatus,
-        comment: comment || null,
-        agentId: session.user.id,
-      },
-    });
+      { returnDocument: 'after' }
+    );
+
+    if (!birthCertificate || !birthCertificate.value) {
+      return NextResponse.json(
+        { success: false, message: "Acte de naissance non trouvé" },
+        { status: 404 }
+      );
+    }
 
     return NextResponse.json({
       success: true,
-      data: birthCertificate
+      data: birthCertificate.value
     });
   } catch (error) {
     console.error("[BIRTH_CERTIFICATE_PATCH]", error);

@@ -55,6 +55,13 @@ const RequestDetails = ({ params }: { params: { id: string } }) => {
 
   const fetchRequestDetails = async () => {
     try {
+      if (!params.id || params.id === 'undefined') {
+        console.error('ID de demande invalide:', params.id);
+        toast.error('ID de demande invalide');
+        router.push('/citizen/requests');
+        return;
+      }
+
       const response = await fetch(`/api/citizen/request/${params.id}`);
       const data = await response.json();
       if (data.success) {
@@ -129,6 +136,11 @@ const RequestDetails = ({ params }: { params: { id: string } }) => {
   };
 
   const handlePayment = () => {
+    if (!params.id || params.id === 'undefined') {
+      toast.error('ID de demande invalide');
+      return;
+    }
+    
     router.push(`/citizen/payment?requestId=${params.id}&amount=5000`);
   };
 

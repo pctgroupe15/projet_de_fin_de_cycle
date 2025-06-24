@@ -110,7 +110,7 @@ export default function PaymentsPage() {
 
   const getStatusBadge = (status: string) => {
     const variants = {
-      PENDING: "warning",
+      PENDING: "secondary",
       PAID: "success",
       FAILED: "destructive",
     } as const;

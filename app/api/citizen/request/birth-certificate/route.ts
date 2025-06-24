@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { nanoid } from 'nanoid';
+import { getDb } from '@/lib/mongodb';
+import { ObjectId } from 'mongodb';
 
 export async function POST(request: Request) {
   try {
@@ -34,38 +35,55 @@ export async function POST(request: Request) {
       );
     }
 
-    const birthCertificate = await prisma.birthCertificate.create({
-      data: {
-        citizenId: session.user.id,
-        fullName,
-        birthDate: new Date(birthDate),
-        birthPlace,
-        fatherFullName: fatherFullName || null,
-        motherFullName: motherFullName || null,
-        acteNumber: acteNumber || null,
-        status: 'en_attente',
-        trackingNumber: nanoid(10),
-        files: {
-          create: [
-            {
-              type: 'DEMANDEUR_ID',
-              url: demandeurIdProofUrl
-            },
-            ...(existingActeUrl ? [{
-              type: 'EXISTING_ACTE',
-              url: existingActeUrl
-            }] : [])
-          ]
-        }
+    const db = await getDb();
+    // Création du birthCertificate
+    const birthCertificateDoc = {
+      citizenId: new ObjectId(session.user.id),
+      fullName,
+      birthDate: new Date(birthDate),
+      birthPlace,
+      fatherFullName: fatherFullName || null,
+      motherFullName: motherFullName || null,
+      acteNumber: acteNumber || null,
+      status: 'PENDING',
+      trackingNumber: nanoid(10),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    const result = await db.collection('BirthCertificate').insertOne(birthCertificateDoc);
+    const birthCertificateId = result.insertedId;
+
+    // Ajout des fichiers associés
+    const files = [
+      {
+        birthCertificateId,
+        type: 'DEMANDEUR_ID',
+        url: demandeurIdProofUrl,
+        createdAt: new Date(),
+        updatedAt: new Date(),
       },
-      include: {
-        files: true
-      }
-    });
+      ...(existingActeUrl ? [{
+        birthCertificateId,
+        type: 'EXISTING_ACTE',
+        url: existingActeUrl,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }] : [])
+    ];
+    if (files.length > 0) {
+      await db.collection('Document').insertMany(files);
+    }
+
+    // Retourner le birthCertificate avec les fichiers
+    const birthCertificate = await db.collection('BirthCertificate').findOne({ _id: birthCertificateId });
+    const birthCertificateFiles = await db.collection('Document').find({ birthCertificateId }).toArray();
 
     return NextResponse.json({
       success: true,
-      data: birthCertificate
+      data: {
+        ...birthCertificate,
+        files: birthCertificateFiles
+      }
     });
   } catch (error) {
     console.error('Error creating birth certificate request:', error);

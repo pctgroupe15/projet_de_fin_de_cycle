@@ -239,12 +239,17 @@ export default function AllRequestsPage() {
                             variant="ghost"
                             size="icon"
                             onClick={() => {
+                              if (!request.id) {
+                                toast.error("ID de la demande manquant !");
+                                return;
+                              }
                               if (request.type === 'birth_certificate') {
                                 router.push(`/agent/documents/${request.id}`);
                               } else {
                                 router.push(`/agent/birth-declarations/${request.id}`);
                               }
                             }}
+                            disabled={!request.id}
                           >
                             <Eye className="h-4 w-4" />
                           </Button>

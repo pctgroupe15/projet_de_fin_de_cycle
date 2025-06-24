@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Request, RequestStatus, RequestType } from '@/types/request';
+import { RequestData, RequestStatus, RequestType } from '@/types/request';
 import { useSession } from 'next-auth/react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -18,7 +18,7 @@ const statusColors = {
 
 export default function MyRequests() {
   const { data: session } = useSession();
-  const [requests, setRequests] = useState<Request[]>([]);
+  const [requests, setRequests] = useState<RequestData[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -68,7 +68,7 @@ export default function MyRequests() {
           </Card>
         ) : (
           requests.map((request) => (
-            <Card key={request._id}>
+            <Card key={request._id?.toString() || ''}>
               <CardHeader>
                 <div className="flex justify-between items-start">
                   <div>

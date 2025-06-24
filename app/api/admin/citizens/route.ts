@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { getDb } from '@/lib/mongodb';
 import bcrypt from "bcryptjs";
+import { ObjectId } from 'mongodb';
 
 export async function GET() {
   try {
@@ -16,11 +17,11 @@ export async function GET() {
       return new NextResponse("Accès refusé", { status: 403 });
     }
 
-    const citizens = await prisma.citizen.findMany({
-      orderBy: {
-        createdAt: "desc",
-      },
-    });
+    const db = await getDb();
+    const citizens = await db.collection('Citizen')
+      .find({})
+      .sort({ createdAt: -1 })
+      .toArray();
 
     return NextResponse.json(citizens);
   } catch (error) {
@@ -48,9 +49,8 @@ export async function POST(req: Request) {
       return new NextResponse("Email et mot de passe requis", { status: 400 });
     }
 
-    const existingCitizen = await prisma.citizen.findUnique({
-      where: { email },
-    });
+    const db = await getDb();
+    const existingCitizen = await db.collection('Citizen').findOne({ email });
 
     if (existingCitizen) {
       return new NextResponse("Cet email est déjà utilisé", { status: 400 });
@@ -58,15 +58,17 @@ export async function POST(req: Request) {
 
     const hashedPassword = await bcrypt.hash(password, 12);
 
-    const citizen = await prisma.citizen.create({
-      data: {
-        name,
-        email,
-        hashedPassword,
-        role: "citizen",
-        status: "active",
-      },
+    const result = await db.collection('Citizen').insertOne({
+      name,
+      email,
+      hashedPassword,
+      role: "citizen",
+      status: "active",
+      createdAt: new Date(),
+      updatedAt: new Date(),
     });
+
+    const citizen = await db.collection('Citizen').findOne({ _id: result.insertedId });
 
     return NextResponse.json(citizen);
   } catch (error) {

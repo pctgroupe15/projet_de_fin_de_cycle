@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { getDb } from '@/lib/mongodb';
+import { ObjectId } from 'mongodb';
 import { UserRole } from "@/types/user";
 
 export async function PATCH(
@@ -17,12 +18,11 @@ export async function PATCH(
       );
     }
 
+    const db = await getDb();
     // Vérifier si l'utilisateur est un admin
-    const admin = await prisma.user.findUnique({
-      where: {
+    const admin = await db.collection('User').findOne({
         email: session.user.email,
         role: UserRole.ADMIN,
-      },
     });
 
     if (!admin) {
@@ -36,80 +36,59 @@ export async function PATCH(
     const { documentId } = params;
 
     // Vérifier d'abord dans les déclarations de naissance
-    const birthDeclaration = await prisma.birthDeclaration.findUnique({
-      where: { id: documentId },
-      include: {
-        citizen: {
-          select: {
-            name: true,
-          },
-        },
-      },
-    });
+    const birthDeclaration = await db.collection('BirthDeclaration').findOne({ _id: new ObjectId(documentId) });
 
     if (birthDeclaration) {
       // Mettre à jour le statut de la déclaration de naissance
-      const updatedDeclaration = await prisma.birthDeclaration.update({
-        where: { id: documentId },
-        data: { status },
-        include: {
-          citizen: {
-            select: {
-              name: true,
-            },
-          },
-        },
-      });
-
+      const updatedDeclaration = await db.collection('BirthDeclaration').findOneAndUpdate(
+        { _id: new ObjectId(documentId) },
+        { $set: { status } },
+        { returnDocument: 'after' }
+      );
+      if (!updatedDeclaration || !updatedDeclaration.value) {
+        return NextResponse.json(
+          { error: "Erreur lors de la mise à jour de la déclaration de naissance" },
+          { status: 500 }
+        );
+      }
+      const citizen = await db.collection('Citizen').findOne({ _id: birthDeclaration.citizenId });
       return NextResponse.json({
-        id: updatedDeclaration.id,
+        id: updatedDeclaration.value._id,
         type: "BirthDeclaration",
-        status: updatedDeclaration.status,
-        createdAt: updatedDeclaration.createdAt,
-        updatedAt: updatedDeclaration.updatedAt,
-        citizenId: updatedDeclaration.citizenId,
-        citizenName: updatedDeclaration.citizen.name
+        status: updatedDeclaration.value.status,
+        createdAt: updatedDeclaration.value.createdAt,
+        updatedAt: updatedDeclaration.value.updatedAt,
+        citizenId: updatedDeclaration.value.citizenId,
+        citizenName: citizen?.name || ''
       });
     }
 
     // Vérifier dans les actes de naissance
-    const birthCertificate = await prisma.birthCertificate.findUnique({
-      where: { id: documentId },
-      include: {
-        citizen: {
-          select: {
-            name: true,
-          },
-        },
-      },
-    });
+    const birthCertificate = await db.collection('BirthCertificate').findOne({ _id: new ObjectId(documentId) });
 
     if (birthCertificate) {
       // Mettre à jour le statut de l'acte de naissance
-      const updatedCertificate = await prisma.birthCertificate.update({
-        where: { id: documentId },
-        data: { 
-          status,
-          comment: status === "rejeté" ? rejectReason : null
-        },
-        include: {
-          citizen: {
-            select: {
-              name: true,
-            },
-          },
-        },
-      });
-
+      const updatedCertificate = await db.collection('BirthCertificate').findOneAndUpdate(
+        { _id: new ObjectId(documentId) },
+        { $set: { status, comment: status === "rejeté" ? rejectReason : null } },
+        { returnDocument: 'after' }
+      );
+      if (!updatedCertificate || !updatedCertificate.value) {
+        return NextResponse.json(
+          { error: "Erreur lors de la mise à jour de l'acte de naissance" },
+          { status: 500 }
+        );
+      }
+      const citizen = await db.collection('Citizen').findOne({ _id: birthCertificate.citizenId });
       return NextResponse.json({
-        id: updatedCertificate.id,
+        id: updatedCertificate.value._id,
         type: "BirthCertificate",
-        status: updatedCertificate.status,
-        createdAt: updatedCertificate.createdAt,
-        updatedAt: updatedCertificate.updatedAt,
-        citizenId: updatedCertificate.citizenId,
-        citizenName: updatedCertificate.citizen.name,
-        comment: updatedCertificate.comment
+        status: updatedCertificate.value.status,
+        createdAt: updatedCertificate.value.createdAt,
+        updatedAt: updatedCertificate.value.updatedAt,
+        citizenId: updatedCertificate.value.citizenId,
+        citizenName: citizen?.name || '',
+        comment: updatedCertificate.value.comment
       });
     }
 

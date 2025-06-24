@@ -2,10 +2,11 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import Stripe from 'stripe';
-import { prisma } from '@/lib/prisma';
+import { getDb } from '@/lib/mongodb';
+import { ObjectId } from 'mongodb';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2023-10-16',
+  apiVersion: '2025-05-28.basil',
 });
 
 export async function POST(request: Request) {
@@ -21,14 +22,14 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { requestId, amount, paymentMethod } = body;
 
+    const db = await getDb();
     // Vérifier le type de demande
-    const birthCertificate = await prisma.birthCertificate.findUnique({
-      where: { id: requestId }
-    });
-
-    const birthDeclaration = await prisma.birthDeclaration.findUnique({
-      where: { id: requestId }
-    });
+    let birthCertificate = null;
+    let birthDeclaration = null;
+    try {
+      birthCertificate = await db.collection('BirthCertificate').findOne({ _id: new ObjectId(requestId) });
+      birthDeclaration = await db.collection('BirthDeclaration').findOne({ _id: new ObjectId(requestId) });
+    } catch (e) {}
 
     if (!birthCertificate && !birthDeclaration) {
       return NextResponse.json(

@@ -1,50 +1,55 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { connectToDatabase } from '@/lib/mongodb';
+import { getDb } from '@/lib/mongodb';
 import { authOptions } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
+import { ObjectId } from "mongodb"
 import bcrypt from 'bcryptjs';
 
 // GET - Récupérer tous les agents
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    console.log('Session:', session);
-
     if (!session?.user?.email) {
-      console.log('Pas de session ou email manquant');
       return NextResponse.json(
         { error: 'Vous devez être connecté pour accéder à cette ressource' },
         { status: 401 }
       );
     }
 
-    // Vérifier si l'utilisateur est un admin avec Prisma
-    const user = await prisma.user.findUnique({
-      where: { 
-        email: session.user.email,
-        role: 'admin'
-      }
-    });
-    console.log('Utilisateur trouvé:', user);
-
+    const db = await getDb();
+    // Vérifier si l'utilisateur est un admin
+    const user = await db.collection('User').findOne({ email: session.user.email, role: 'admin' });
     if (!user) {
-      console.log('Utilisateur non trouvé ou non admin');
       return NextResponse.json(
         { error: 'Vous devez être administrateur pour accéder à cette ressource' },
         { status: 403 }
       );
     }
 
-    // Récupérer tous les agents depuis MongoDB
-    const { db } = await connectToDatabase();
+    // Récupérer tous les agents
     const agents = await db.collection('Agent')
       .find()
-      .project({ password: 0 }) // Exclure le mot de passe
+      .project({ hashedPassword: 0 }) // Exclure le mot de passe
       .toArray();
 
-    console.log('Nombre d\'agents trouvés:', agents.length);
-    return NextResponse.json(agents);
+    // Formater les agents pour correspondre à l'interface
+    const formattedAgents = agents.map((agent: any) => ({
+      id: agent._id.toString(),
+      firstName: agent.firstName || agent.prenom || '',
+      lastName: agent.lastName || agent.nom || '',
+      email: agent.email,
+      role: agent.role,
+      commune: agent.commune || '',
+      status: agent.status || 'active'
+    }));
+
+    // GET communes
+    if (request.method === 'GET' && request.url?.includes('/communes')) {
+      const communes = await db.collection('Commune').find({}).toArray();
+      return NextResponse.json(communes);
+    }
+
+    return NextResponse.json(formattedAgents);
   } catch (error) {
     console.error('Erreur détaillée lors de la récupération des agents:', error);
     return NextResponse.json(
@@ -65,10 +70,9 @@ export async function POST(request: Request) {
       );
     }
 
-    const { db } = await connectToDatabase();
-
+    const db = await getDb();
     // Vérifier si l'utilisateur est un admin
-    const admin = await db.collection('admins').findOne({ email: session.user.email });
+    const admin = await db.collection('User').findOne({ email: session.user.email, role: 'admin' });
     if (!admin) {
       return NextResponse.json(
         { error: 'Accès non autorisé' },
@@ -77,7 +81,15 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { email, password, nom, prenom, role } = body;
+    const { email, password, firstName, lastName, role, commune, status } = body;
+
+    // Validation des champs requis
+    if (!email || !firstName || !lastName || !commune) {
+      return NextResponse.json(
+        { error: 'Tous les champs sont requis (email, prénom, nom, commune)' },
+        { status: 400 }
+      );
+    }
 
     // Vérifier si l'email existe déjà
     const existingAgent = await db.collection('Agent').findOne({ email });
@@ -88,25 +100,79 @@ export async function POST(request: Request) {
       );
     }
 
-    // Hasher le mot de passe
-    const hashedPassword = await bcrypt.hash(password, 10);
+    // Trouver l'ID de la commune si elle est fournie
+    let communeId = undefined;
+    if (commune) {
+      const communeDoc = await db.collection('Commune').findOne({ name: commune });
+      if (communeDoc) {
+        communeId = communeDoc._id;
+      }
+    }
+
+    // Générer un mot de passe par défaut si non fourni
+    const defaultPassword = password || 'password123';
+    
+    // Validation du mot de passe
+    if (!defaultPassword || defaultPassword.trim() === '') {
+      return NextResponse.json(
+        { error: 'Un mot de passe valide est requis' },
+        { status: 400 }
+      );
+    }
+    
+    const hashedPassword = await bcrypt.hash(defaultPassword, 10);
+
+    console.log('[Create Agent] Informations de création:', {
+      email,
+      passwordProvided: !!password,
+      defaultPassword,
+      hashedPasswordLength: hashedPassword.length,
+      firstName,
+      lastName,
+      commune
+    });
 
     // Créer le nouvel agent
     const newAgent = {
       email,
-      password: hashedPassword,
-      nom,
-      prenom,
+      hashedPassword,
+      firstName,
+      lastName,
       role: role || 'agent', // Par défaut, le rôle est 'agent'
+      commune: commune || '',
+      communeId,
+      status: status || 'active',
       createdAt: new Date(),
       updatedAt: new Date()
     };
 
-    await db.collection('Agent').insertOne(newAgent);
+    const result = await db.collection('Agent').insertOne(newAgent);
 
-    // Retourner l'agent créé sans le mot de passe
-    const { password: _, ...agentWithoutPassword } = newAgent;
-    return NextResponse.json(agentWithoutPassword, { status: 201 });
+    // Récupérer l'agent créé sans le mot de passe
+    const createdAgent = await db.collection('Agent').findOne(
+      { _id: result.insertedId },
+      { projection: { hashedPassword: 0 } }
+    );
+
+    if (!createdAgent) {
+      return NextResponse.json(
+        { error: 'Erreur lors de la création de l\'agent' },
+        { status: 500 }
+      );
+    }
+
+    // Formater l'agent pour correspondre à l'interface
+    const formattedAgent = {
+      id: createdAgent._id.toString(),
+      firstName: createdAgent.firstName || createdAgent.prenom || '',
+      lastName: createdAgent.lastName || createdAgent.nom || '',
+      email: createdAgent.email,
+      role: createdAgent.role,
+      commune: createdAgent.commune || '',
+      status: createdAgent.status || 'active'
+    };
+
+    return NextResponse.json(formattedAgent, { status: 201 });
   } catch (error) {
     console.error('Erreur lors de la création de l\'agent:', error);
     return NextResponse.json(
@@ -127,10 +193,9 @@ export async function DELETE(request: Request) {
       );
     }
 
-    const { db } = await connectToDatabase();
-
+    const db = await getDb();
     // Vérifier si l'utilisateur est un admin
-    const admin = await db.collection('admins').findOne({ email: session.user.email });
+    const admin = await db.collection('User').findOne({ email: session.user.email, role: 'admin' });
     if (!admin) {
       return NextResponse.json(
         { error: 'Accès non autorisé' },
@@ -148,7 +213,7 @@ export async function DELETE(request: Request) {
       );
     }
 
-    const result = await db.collection('Agent').deleteOne({ _id: agentId });
+    const result = await db.collection('Agent').deleteOne({ _id: new ObjectId(agentId) });
 
     if (result.deletedCount === 0) {
       return NextResponse.json(
@@ -165,4 +230,11 @@ export async function DELETE(request: Request) {
       { status: 500 }
     );
   }
+}
+
+// Nouvelle route API pour la liste des communes
+export async function communesGET() {
+  const db = await getDb();
+  const communes = await db.collection('Commune').find({}).toArray();
+  return NextResponse.json(communes);
 }

@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { getDb } from '@/lib/mongodb';
+import { ObjectId } from 'mongodb';
 
 export async function GET() {
   try {
@@ -13,37 +14,37 @@ export async function GET() {
       );
     }
 
-    // Récupérer tous les documents du citoyen
-    const [birthCertificates, birthDeclarations] = await Promise.all([
-      prisma.birthCertificate.findMany({
-        where: {
-          citizenId: session.user.id
-        },
-        orderBy: {
-          createdAt: 'desc'
-        },
-        include: {
-          files: true
+    const db = await getDb();
+    // Récupérer tous les actes de naissance du citoyen
+    const birthCertificates = await db.collection('BirthCertificate').aggregate([
+      { $match: { citizenId: new ObjectId(session.user.id) } },
+      { $sort: { createdAt: -1 } },
+      { $lookup: {
+          from: 'Document',
+          localField: '_id',
+          foreignField: 'birthCertificateId',
+          as: 'files'
         }
-      }),
-      prisma.birthDeclaration.findMany({
-        where: {
-          citizenId: session.user.id
-        },
-        orderBy: {
-          createdAt: 'desc'
-        },
-        include: {
-          documents: true,
-          citizen: true
+      }
+    ]).toArray();
+
+    // Récupérer toutes les déclarations de naissance du citoyen
+    const birthDeclarations = await db.collection('BirthDeclaration').aggregate([
+      { $match: { citizenId: new ObjectId(session.user.id) } },
+      { $sort: { createdAt: -1 } },
+      { $lookup: {
+          from: 'Document',
+          localField: '_id',
+          foreignField: 'birthDeclarationId',
+          as: 'documents'
         }
-      })
-    ]);
+      }
+    ]).toArray();
 
     // Combiner et formater les documents
     const documents = [
       ...birthCertificates.map(cert => ({
-        id: cert.id,
+        id: cert._id.toString(),
         documentType: 'birth_certificate',
         fullName: cert.fullName,
         birthDate: cert.birthDate,
@@ -57,7 +58,7 @@ export async function GET() {
         files: cert.files
       })),
       ...birthDeclarations.map(decl => ({
-        id: decl.id,
+        id: decl._id.toString(),
         documentType: 'birth_declaration',
         fullName: `${decl.childFirstName} ${decl.childLastName}`,
         birthDate: decl.birthDate,
@@ -65,10 +66,10 @@ export async function GET() {
         fatherFullName: `${decl.fatherFirstName} ${decl.fatherLastName}`,
         motherFullName: `${decl.motherFirstName} ${decl.motherLastName}`,
         status: decl.status,
-        trackingNumber: decl.id,
+        trackingNumber: decl._id.toString(),
         createdAt: decl.createdAt,
         updatedAt: decl.updatedAt,
-        files: decl.documents.map(doc => ({
+        files: decl.documents.map((doc: any) => ({
           type: doc.type,
           url: doc.url
         }))
