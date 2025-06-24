@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { connectToDatabase } from '@/lib/mongodb';
+import { getDb } from '@/lib/mongodb';
 import bcrypt from 'bcryptjs';
 
 export async function POST(request: Request) {
@@ -7,10 +7,10 @@ export async function POST(request: Request) {
     const { name, email, password } = await request.json();
     console.log('Création d\'un agent de test:', { name, email });
 
-    const { db } = await connectToDatabase();
+    const db = await getDb();
     
     // Vérifier si l'agent existe déjà
-    const existingAgent = await db.collection('agents').findOne({ email });
+    const existingAgent = await db.collection('Agent').findOne({ email });
     if (existingAgent) {
       console.log('Agent existant trouvé:', existingAgent);
       return NextResponse.json({
@@ -32,7 +32,7 @@ export async function POST(request: Request) {
     const newAgent = {
       name,
       email,
-      password: hashedPassword,
+      hashedPassword,
       role: 'agent',
       status: 'active',
       createdAt: new Date(),
@@ -40,11 +40,11 @@ export async function POST(request: Request) {
     };
 
     // Insérer dans la collection agents
-    const result = await db.collection('agents').insertOne(newAgent);
+    const result = await db.collection('Agent').insertOne(newAgent);
     console.log('Agent créé avec succès:', result.insertedId);
 
     // Vérifier que l'agent a bien été créé
-    const createdAgent = await db.collection('agents').findOne({ _id: result.insertedId });
+    const createdAgent = await db.collection('Agent').findOne({ _id: result.insertedId });
     if (!createdAgent) {
       throw new Error('Agent non trouvé après création');
     }

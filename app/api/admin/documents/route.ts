@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { getDb } from '@/lib/mongodb';
+import { ObjectId } from 'mongodb';
 import { UserRole } from "@/types/user";
 
 // GET - Récupérer tous les documents
@@ -15,12 +16,11 @@ export async function GET() {
       );
     }
 
+    const db = await getDb();
     // Vérifier si l'utilisateur est un admin
-    const admin = await prisma.user.findUnique({
-      where: {
-        email: session.user.email,
-        role: UserRole.ADMIN,
-      },
+    const admin = await db.collection('User').findOne({
+      email: session.user.email,
+      role: UserRole.ADMIN,
     });
 
     if (!admin) {
@@ -31,46 +31,56 @@ export async function GET() {
     }
 
     // Récupérer toutes les déclarations de naissance
-    const birthDeclarations = await prisma.birthDeclaration.findMany({
-      include: {
-        citizen: {
-          select: {
-            name: true,
-          },
-        },
+    const birthDeclarations = await db.collection('BirthDeclaration').aggregate([
+      { $lookup: {
+          from: 'Citizen',
+          localField: 'citizenId',
+          foreignField: '_id',
+          as: 'citizenArr'
+        }
       },
-    });
+      { $addFields: {
+          citizen: { $arrayElemAt: ['$citizenArr', 0] }
+        }
+      },
+      { $project: { citizenArr: 0 } }
+    ]).toArray();
 
     // Récupérer tous les actes de naissance
-    const birthCertificates = await prisma.birthCertificate.findMany({
-      include: {
-        citizen: {
-          select: {
-            name: true,
-          },
-        },
+    const birthCertificates = await db.collection('BirthCertificate').aggregate([
+      { $lookup: {
+          from: 'Citizen',
+          localField: 'citizenId',
+          foreignField: '_id',
+          as: 'citizenArr'
+        }
       },
-    });
+      { $addFields: {
+          citizen: { $arrayElemAt: ['$citizenArr', 0] }
+        }
+      },
+      { $project: { citizenArr: 0 } }
+    ]).toArray();
 
     // Transformer les données pour un format uniforme
     const documents = [
-      ...birthDeclarations.map((doc) => ({
-        id: doc.id,
+      ...birthDeclarations.map((doc: any) => ({
+        id: doc._id,
         type: "BirthDeclaration",
         status: doc.status,
         createdAt: doc.createdAt,
         updatedAt: doc.updatedAt,
         citizenId: doc.citizenId,
-        citizenName: doc.citizen.name,
+        citizenName: doc.citizen?.name || '',
       })),
-      ...birthCertificates.map((doc) => ({
-        id: doc.id,
+      ...birthCertificates.map((doc: any) => ({
+        id: doc._id,
         type: "BirthCertificate",
         status: doc.status,
         createdAt: doc.createdAt,
         updatedAt: doc.updatedAt,
         citizenId: doc.citizenId,
-        citizenName: doc.citizen.name,
+        citizenName: doc.citizen?.name || '',
       })),
     ];
 

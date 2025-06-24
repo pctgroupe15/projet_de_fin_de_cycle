@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { getDb } from '@/lib/mongodb';
+import { ObjectId } from 'mongodb';
 
 export async function GET(request: Request) {
   try {
@@ -18,11 +19,11 @@ export async function GET(request: Request) {
     const status = searchParams.get("status");
     const dateRange = searchParams.get("dateRange");
 
-    let whereClause: any = {};
+    let matchClause: any = {};
 
     // Filtre par statut
     if (status && status !== "all") {
-      whereClause.status = status;
+      matchClause.status = status;
     }
 
     // Filtre par date
@@ -45,45 +46,56 @@ export async function GET(request: Request) {
           break;
       }
 
-      whereClause.createdAt = {
-        gte: startDate,
-        lte: now,
+      matchClause.createdAt = {
+        $gte: startDate,
+        $lte: now,
       };
     }
 
-    const payments = await prisma.payment.findMany({
-      where: whereClause,
-      include: {
-        birthDeclaration: {
-          select: {
-            id: true,
-            childFirstName: true,
-            childLastName: true,
-            citizen: {
-              select: {
-                name: true,
-                email: true,
-              },
-            },
-          },
-        },
-        birthCertificate: {
-          select: {
-            id: true,
-            fullName: true,
-            citizen: {
-              select: {
-                name: true,
-                email: true,
-              },
-            },
-          },
-        },
+    const db = await getDb();
+    const payments = await db.collection('Payment').aggregate([
+      { $match: matchClause },
+      { $sort: { createdAt: -1 } },
+      { $lookup: {
+          from: 'BirthDeclaration',
+          localField: 'birthDeclarationId',
+          foreignField: '_id',
+          as: 'birthDeclarationArr'
+        }
       },
-      orderBy: {
-        createdAt: "desc",
+      { $lookup: {
+          from: 'BirthCertificate',
+          localField: 'birthCertificateId',
+          foreignField: '_id',
+          as: 'birthCertificateArr'
+        }
       },
-    });
+      { $addFields: {
+          birthDeclaration: { $arrayElemAt: ['$birthDeclarationArr', 0] },
+          birthCertificate: { $arrayElemAt: ['$birthCertificateArr', 0] }
+        }
+      },
+      { $lookup: {
+          from: 'Citizen',
+          localField: 'birthDeclaration.citizenId',
+          foreignField: '_id',
+          as: 'declarationCitizenArr'
+        }
+      },
+      { $lookup: {
+          from: 'Citizen',
+          localField: 'birthCertificate.citizenId',
+          foreignField: '_id',
+          as: 'certificateCitizenArr'
+        }
+      },
+      { $addFields: {
+          declarationCitizen: { $arrayElemAt: ['$declarationCitizenArr', 0] },
+          certificateCitizen: { $arrayElemAt: ['$certificateCitizenArr', 0] }
+        }
+      },
+      { $project: { birthDeclarationArr: 0, birthCertificateArr: 0, declarationCitizenArr: 0, certificateCitizenArr: 0 } }
+    ]).toArray();
 
     return NextResponse.json(payments);
   } catch (error) {

@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { v2 as cloudinary } from 'cloudinary';
-import { prisma } from '@/lib/prisma';
+import { getDb } from '@/lib/mongodb';
+import { ObjectId } from 'mongodb';
 
 // Vérifier la configuration Cloudinary
 if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
@@ -37,10 +38,9 @@ export async function POST(request: Request) {
       );
     }
 
+    const db = await getDb();
     // Vérifier que la déclaration existe
-    const declaration = await prisma.birthDeclaration.findUnique({
-      where: { id: requestId }
-    });
+    const declaration = await db.collection('BirthDeclaration').findOne({ _id: new ObjectId(requestId) });
 
     if (!declaration) {
       return NextResponse.json(
@@ -95,13 +95,15 @@ export async function POST(request: Request) {
     }
 
     // Créer le document dans la base de données
-    const document = await prisma.document.create({
-      data: {
-        type: 'DOCUMENT', // Utiliser un type valide selon le schéma
-        url: (result as any).secure_url,
-        birthDeclarationId: requestId,
-      },
-    });
+    const documentToInsert = {
+      type: 'DOCUMENT', // Utiliser un type valide selon le schéma
+      url: (result as any).secure_url,
+      birthDeclarationId: new ObjectId(requestId),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    const insertResult = await db.collection('Document').insertOne(documentToInsert);
+    const document = await db.collection('Document').findOne({ _id: insertResult.insertedId });
 
     return NextResponse.json({
       success: true,

@@ -58,7 +58,7 @@ export default function Home() {
         <div className="container flex h-16 items-center justify-between">
           <div className="flex items-center gap-2">
             <FileText className="h-6 w-6 text-primary" />
-            <span className="font-bold text-xl">DocService</span>
+            <span className="font-bold text-xl">MyAdminHome</span>
           </div>
           
           <MainNav />
@@ -72,12 +72,12 @@ export default function Home() {
               <Link href="/auth/register">
                 <Button>Inscription</Button>
               </Link>
-              <Link href="/auth/admin-login">
+              {/* <Link href="/auth/admin-login">
                 <Button variant="ghost" className="text-primary">
                   <ShieldCheck className="mr-2 h-4 w-4" />
                   Admin
                 </Button>
-              </Link>
+              </Link> */}
             </div>
             <div className="md:hidden">
               <Link href="/auth/login">
@@ -93,7 +93,7 @@ export default function Home() {
         <section className="py-12 md:py-24 lg:py-32 bg-gradient-to-br from-brand-orange-50 via-white to-brand-green-50">
           <div className="container px-4 md:px-6 flex flex-col items-center text-center space-y-8 animate-fadeIn">
             <div className="space-y-4 max-w-[800px]">
-              <h1 className="text-3xl md:text-5xl font-bold tracking-tighter">
+              <h1 className="text-3xl md:text-5xl font-bold tracking-tighter text-black">
                 Vos documents administratifs en quelques clics
               </h1>
               <p className="text-muted-foreground md:text-xl max-w-[600px] mx-auto">
@@ -114,7 +114,7 @@ export default function Home() {
             </div>
             <div className="w-full max-w-5xl mt-12 rounded-lg overflow-hidden shadow-2xl border animate-slideUp" style={{ animationDelay: '300ms' }}>
               <Image 
-                src="https://images.pexels.com/photos/8867432/pexels-photo-8867432.jpeg" 
+                src="https://images.pexels.com/photos/5060557/pexels-photo-5060557.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2" 
                 alt="Plateforme de documents administratifs" 
                 width={1920} 
                 height={1080} 
@@ -139,7 +139,7 @@ export default function Home() {
         </section>
         
         {/* User Types */}
-        <section className="py-16 bg-white">
+        {/* <section className="py-16 bg-white">
           <div className="container px-4 md:px-6">
             <div className="text-center space-y-4 mb-12">
               <h2 className="text-3xl font-bold tracking-tighter">Choisissez Votre Profil</h2>
@@ -182,7 +182,7 @@ export default function Home() {
               ))}
             </div>
           </div>
-        </section>
+        </section> */}
         
         {/* FAQ */}
         <section className="py-16 bg-muted">
@@ -234,7 +234,7 @@ export default function Home() {
             <div className="space-y-4">
               <div className="flex items-center gap-2">
                 <FileText className="h-6 w-6 text-primary" />
-                <span className="font-bold text-xl">DocService</span>
+                <span className="font-bold text-xl">MyAdminHome</span>
               </div>
               <p className="text-muted-foreground">
                 Simplifiez vos démarches administratives avec notre plateforme intuitive.
@@ -264,16 +264,16 @@ export default function Home() {
             <div>
               <h3 className="font-semibold text-lg mb-4">Contact</h3>
               <address className="not-italic text-muted-foreground space-y-2">
-                <p>Email: contact@docservice.com</p>
-                <p>Téléphone: +123 456 789</p>
-                <p>Adresse: 123 Avenue Principale, Ville</p>
+                <p>Email: contact@myadminhome.com</p>
+                <p>Téléphone: +225 07 88 35 75 90</p>
+                <p>Adresse: Abidjan, Côte d'Ivoire</p>
               </address>
             </div>
           </div>
           
           <div className="mt-8 pt-8 border-t flex flex-col md:flex-row justify-between items-center">
             <p className="text-sm text-muted-foreground">
-              © 2025 DocService. Tous droits réservés.
+              © 2025 MyAdminHome. Tous droits réservés.
             </p>
             <div className="flex space-x-6 mt-4 md:mt-0">
               <Link href="#" className="text-muted-foreground hover:text-primary transition-colors">Conditions d'utilisation</Link>

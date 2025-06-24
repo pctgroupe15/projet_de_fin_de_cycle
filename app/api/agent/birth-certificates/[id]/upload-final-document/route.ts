@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { prisma } from '@/lib/prisma';
+import { getDb } from '@/lib/mongodb';
 import { v2 as cloudinary } from 'cloudinary';
-import { UploadApiResponse } from 'cloudinary';
+import { ObjectId } from 'mongodb';
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -40,7 +40,7 @@ export async function POST(
     const buffer = Buffer.from(bytes);
 
     // Téléverser sur Cloudinary
-    const uploadResponse = await new Promise<UploadApiResponse>((resolve, reject) => {
+    const uploadResponse = await new Promise<any>((resolve, reject) => {
       cloudinary.uploader.upload_stream(
         {
           resource_type: "auto",
@@ -48,7 +48,7 @@ export async function POST(
         },
         (error, result) => {
           if (error) reject(error);
-          else resolve(result as UploadApiResponse);
+          else resolve(result);
         }
       ).end(buffer);
     });
@@ -57,18 +57,23 @@ export async function POST(
       throw new Error('Erreur lors du téléversement sur Cloudinary');
     }
 
+    const db = await getDb();
     // Créer le document dans la base de données
-    const document = await prisma.document.create({
-      data: {
-        type: 'ACTE_NAISSANCE_FINAL',
-        url: uploadResponse.secure_url,
-        birthCertificate: {
-          connect: {
-            id: params.id,
-          },
-        },
-      },
+    const documentInsert = await db.collection('Document').insertOne({
+      type: 'ACTE_NAISSANCE_FINAL',
+      url: uploadResponse.secure_url,
+      birthCertificateId: new ObjectId(params.id),
+      createdAt: new Date(),
+      updatedAt: new Date(),
     });
+    const document = await db.collection('Document').findOne({ _id: documentInsert.insertedId });
+
+    if (!document) {
+      return NextResponse.json(
+        { success: false, message: 'Erreur lors de la création du document.' },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json({
       success: true,

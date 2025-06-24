@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { getDb } from '@/lib/mongodb';
+import { ObjectId } from 'mongodb';
 
 export async function GET(request: Request) {
   try {
@@ -24,91 +25,87 @@ export async function GET(request: Request) {
       whereClause.status = status;
     }
 
+    const db = await getDb();
     // Récupérer les déclarations de naissance
-    const declarations = await prisma.birthDeclaration.findMany({
-      where: whereClause,
-      select: {
-        id: true,
-        status: true,
-        createdAt: true,
-        childFirstName: true,
-        childLastName: true,
-        citizen: {
-          select: {
-            name: true,
-            email: true,
-          },
-        },
-        documents: {
-          select: {
-            id: true,
-            type: true,
-            url: true,
-          },
-        },
+    const declarations = await db.collection('BirthDeclaration').aggregate([
+      { $match: whereClause },
+      { $sort: { createdAt: -1 } },
+      { $lookup: {
+          from: 'Citizen',
+          localField: 'citizenId',
+          foreignField: '_id',
+          as: 'citizenArr'
+        }
       },
-      orderBy: {
-        createdAt: "desc",
+      { $addFields: {
+          citizen: { $arrayElemAt: ['$citizenArr', 0] }
+        }
       },
-    });
+      { $lookup: {
+          from: 'Document',
+          localField: '_id',
+          foreignField: 'birthDeclarationId',
+          as: 'documents'
+        }
+      },
+      { $project: { citizenArr: 0 } }
+    ]).toArray();
 
     // Récupérer les actes de naissance
-    const certificates = await prisma.birthCertificate.findMany({
-      where: whereClause,
-      select: {
-        id: true,
-        status: true,
-        createdAt: true,
-        fullName: true,
-        citizen: {
-          select: {
-            name: true,
-            email: true,
-          },
-        },
-        files: {
-          select: {
-            id: true,
-            type: true,
-            url: true,
-          },
-        },
+    const certificates = await db.collection('BirthCertificate').aggregate([
+      { $match: whereClause },
+      { $sort: { createdAt: -1 } },
+      { $lookup: {
+          from: 'Citizen',
+          localField: 'citizenId',
+          foreignField: '_id',
+          as: 'citizenArr'
+        }
       },
-      orderBy: {
-        createdAt: "desc",
+      { $addFields: {
+          citizen: { $arrayElemAt: ['$citizenArr', 0] }
+        }
       },
-    });
+      { $lookup: {
+          from: 'Document',
+          localField: '_id',
+          foreignField: 'birthCertificateId',
+          as: 'files'
+        }
+      },
+      { $project: { citizenArr: 0 } }
+    ]).toArray();
 
     // Combiner et formater les résultats
     const requests = [
-      ...declarations.map(declaration => ({
-        id: declaration.id,
+      ...declarations.map((declaration: any) => ({
+        id: declaration._id,
         documentType: "Déclaration de naissance",
         status: declaration.status,
         createdAt: declaration.createdAt,
         name: `${declaration.childFirstName} ${declaration.childLastName}`,
         citizen: {
-          name: declaration.citizen.name,
-          email: declaration.citizen.email,
+          name: declaration.citizen?.name || '',
+          email: declaration.citizen?.email || '',
         },
-        documents: declaration.documents.map(doc => ({
-          id: doc.id,
+        documents: (declaration.documents || []).map((doc: any) => ({
+          id: doc._id,
           name: doc.type,
           url: doc.url,
         })),
       })),
-      ...certificates.map(certificate => ({
-        id: certificate.id,
+      ...certificates.map((certificate: any) => ({
+        id: certificate._id,
         documentType: "Acte de naissance",
         status: certificate.status,
         createdAt: certificate.createdAt,
         name: certificate.fullName,
         citizen: {
-          name: certificate.citizen.name,
-          email: certificate.citizen.email,
+          name: certificate.citizen?.name || '',
+          email: certificate.citizen?.email || '',
         },
-        documents: certificate.files.map(doc => ({
-          id: doc.id,
+        documents: (certificate.files || []).map((doc: any) => ({
+          id: doc._id,
           name: doc.type,
           url: doc.url,
         })),
@@ -128,4 +125,4 @@ export async function GET(request: Request) {
       { status: 500 }
     );
   }
-} 
+}

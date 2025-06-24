@@ -1,24 +1,24 @@
 import { NextResponse } from 'next/server';
-import { connectToDatabase } from '@/lib/mongodb';
+import { getDb } from '@/lib/mongodb';
 
 export async function GET() {
   try {
-    const { db } = await connectToDatabase();
+    const db = await getDb();
 
     // Obtenir le nombre total d'agents
-    const totalAgents = await db.collection('agents').countDocuments();
+    const totalAgents = await db.collection('Agent').countDocuments();
 
     // Obtenir le nombre d'agents actifs
-    const activeAgents = await db.collection('agents').countDocuments({ status: 'active' });
+    const activeAgents = await db.collection('Agent').countDocuments({ status: 'active' });
 
     // Obtenir le nombre d'agents inactifs
-    const inactiveAgents = await db.collection('agents').countDocuments({ status: 'inactive' });
+    const inactiveAgents = await db.collection('Agent').countDocuments({ status: 'inactive' });
 
     // Obtenir les agents récemment ajoutés (derniers 30 jours)
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     
-    const newAgents = await db.collection('agents').countDocuments({
+    const newAgents = await db.collection('Agent').countDocuments({
       createdAt: { $gte: thirtyDaysAgo }
     });
 

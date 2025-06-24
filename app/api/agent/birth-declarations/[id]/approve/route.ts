@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { getDb } from '@/lib/mongodb';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { RequestStatus } from '@prisma/client';
+import { ObjectId } from 'mongodb';
 import { nanoid } from 'nanoid';
 
 export async function POST(
@@ -19,22 +19,44 @@ export async function POST(
       );
     }
 
+    const db = await getDb();
     // Vérifier si la déclaration existe
-    const declaration = await prisma.birthDeclaration.findUnique({
-      where: { id: params.id },
-      include: {
-        citizen: {
-          select: {
-            name: true,
-            email: true,
-          },
-        },
-        documents: true,
-        payment: true,
+    const declaration = await db.collection('BirthDeclaration').aggregate([
+      { $match: { _id: new ObjectId(params.id) } },
+      { $lookup: {
+          from: 'Citizen',
+          localField: 'citizenId',
+          foreignField: '_id',
+          as: 'citizenArr'
+        }
       },
-    });
+      { $addFields: {
+          citizen: { $arrayElemAt: ['$citizenArr', 0] }
+        }
+      },
+      { $lookup: {
+          from: 'Document',
+          localField: '_id',
+          foreignField: 'birthDeclarationId',
+          as: 'documents'
+        }
+      },
+      { $lookup: {
+          from: 'Payment',
+          localField: '_id',
+          foreignField: 'birthDeclarationId',
+          as: 'paymentArr'
+        }
+      },
+      { $addFields: {
+          payment: { $arrayElemAt: ['$paymentArr', 0] }
+        }
+      },
+      { $project: { citizenArr: 0, paymentArr: 0 } }
+    ]).toArray();
+    const decl = declaration[0];
 
-    if (!declaration) {
+    if (!decl) {
       return NextResponse.json(
         { success: false, message: 'Déclaration non trouvée' },
         { status: 404 }
@@ -42,7 +64,7 @@ export async function POST(
     }
 
     // Vérifier si la déclaration est en attente
-    if (declaration.status !== RequestStatus.PENDING) {
+    if (decl.status !== 'PENDING') {
       return NextResponse.json(
         { success: false, message: 'Cette déclaration a déjà été traitée' },
         { status: 400 }
@@ -50,7 +72,7 @@ export async function POST(
     }
 
     // Vérifier le paiement
-    if (!declaration.payment || declaration.payment.status !== 'PAID') {
+    if (!decl.payment || decl.payment.status !== 'PAID') {
       return NextResponse.json(
         { success: false, message: 'Le paiement n\'a pas été effectué' },
         { status: 400 }
@@ -59,77 +81,77 @@ export async function POST(
 
     // Générer un numéro d'acte unique
     const acteNumber = `ACTE-${nanoid(8)}`;
+    const trackingNumber = nanoid(10);
+
+    // Créer les fichiers associés à l'acte
+    const files = (decl.documents || []).map((doc: any) => ({
+      type: doc.type,
+      url: doc.url
+    }));
 
     // Créer l'acte de naissance
-    const birthCertificate = await prisma.birthCertificate.create({
-      data: {
-        citizenId: declaration.citizenId,
-        fullName: `${declaration.childFirstName} ${declaration.childLastName}`,
-        birthDate: declaration.birthDate,
-        birthPlace: declaration.birthPlace,
-        fatherFullName: `${declaration.fatherFirstName} ${declaration.fatherLastName}`,
-        motherFullName: `${declaration.motherFirstName} ${declaration.motherLastName}`,
-        acteNumber,
-        status: RequestStatus.COMPLETED,
-        trackingNumber: nanoid(10),
-        agentId: session.user.id,
-        files: {
-          create: declaration.documents.map(doc => ({
-            type: doc.type,
-            url: doc.url
-          }))
-        }
-      },
-      include: {
-        files: true
-      }
+    const birthCertificateInsert = await db.collection('BirthCertificate').insertOne({
+      citizenId: decl.citizenId,
+      fullName: `${decl.childFirstName} ${decl.childLastName}`,
+      birthDate: decl.birthDate,
+      birthPlace: decl.birthPlace,
+      fatherFullName: `${decl.fatherFirstName} ${decl.fatherLastName}`,
+      motherFullName: `${decl.motherFirstName} ${decl.motherLastName}`,
+      acteNumber,
+      status: 'COMPLETED',
+      trackingNumber,
+      agentId: session.user.id,
+      files,
+      createdAt: new Date(),
+      updatedAt: new Date(),
     });
+    const birthCertificate = await db.collection('BirthCertificate').findOne({ _id: birthCertificateInsert.insertedId });
+
+    if (!birthCertificate) {
+      return NextResponse.json(
+        { success: false, message: 'Erreur lors de la création de l\'acte de naissance' },
+        { status: 500 }
+      );
+    }
 
     // Mettre à jour le statut de la déclaration
-    const updatedDeclaration = await prisma.birthDeclaration.update({
-      where: { id: params.id },
-      data: {
-        status: RequestStatus.COMPLETED,
-        agentId: session.user.id,
-      },
-      include: {
-        citizen: {
-          select: {
-            name: true,
-            email: true,
-          },
-        },
-        documents: true,
-        payment: true,
-      },
-    });
+    const updatedDeclaration = await db.collection('BirthDeclaration').findOneAndUpdate(
+      { _id: new ObjectId(params.id) },
+      { $set: { status: 'COMPLETED', agentId: session.user.id, updatedAt: new Date() } },
+      { returnDocument: 'after' }
+    );
+
+    if (!updatedDeclaration || !updatedDeclaration.value) {
+      return NextResponse.json(
+        { success: false, message: 'Erreur lors de la mise à jour de la déclaration' },
+        { status: 500 }
+      );
+    }
 
     // Créer une notification pour le citoyen
-    await prisma.notification.create({
-      data: {
-        citizenId: declaration.citizenId,
-        title: "Votre déclaration de naissance a été approuvée",
-        message: `Votre déclaration de naissance pour ${declaration.childFirstName} ${declaration.childLastName} a été approuvée. Votre acte de naissance (${acteNumber}) est maintenant disponible.`,
-        type: "BIRTH_DECLARATION",
-        referenceId: declaration.id,
-      },
+    await db.collection('Notification').insertOne({
+      citizenId: decl.citizenId,
+      title: "Votre déclaration de naissance a été approuvée",
+      message: `Votre déclaration de naissance pour ${decl.childFirstName} ${decl.childLastName} a été approuvée. Votre acte de naissance (${acteNumber}) est maintenant disponible.`,
+      type: "BIRTH_DECLARATION",
+      referenceId: decl._id,
+      createdAt: new Date(),
     });
 
     // Créer une notification pour l'acte de naissance
-    await prisma.notification.create({
-      data: {
-        citizenId: declaration.citizenId,
-        title: "Votre acte de naissance est disponible",
-        message: `Votre acte de naissance (${acteNumber}) pour ${declaration.childFirstName} ${declaration.childLastName} est maintenant disponible.`,
-        type: "BIRTH_CERTIFICATE",
-        referenceId: birthCertificate.id,
-      },
+    await db.collection('Notification').insertOne({
+      citizenId: decl.citizenId,
+      title: "Votre acte de naissance est disponible",
+      message: `Votre acte de naissance (${acteNumber}) pour ${decl.childFirstName} ${decl.childLastName} est maintenant disponible.`,
+      type: "BIRTH_CERTIFICATE",
+      referenceId: birthCertificate._id,
+      createdAt: new Date(),
     });
 
     return NextResponse.json({
       success: true,
       data: {
-        declaration: updatedDeclaration,
+        declaration: updatedDeclaration.value,
         birthCertificate
       }
     });

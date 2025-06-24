@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -14,6 +14,13 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 
@@ -24,12 +31,20 @@ const formSchema = z.object({
   fatherName: z.string().min(2, "Le nom du père est requis"),
   motherName: z.string().min(2, "Le nom de la mère est requis"),
   reason: z.string().min(10, "La raison de la demande est requise"),
+  communeId: z.string().min(1, "La commune est requise"),
 });
 
 type FormValues = z.infer<typeof formSchema>;
 
+interface Commune {
+  _id: string;
+  name: string;
+}
+
 export default function ActeNaissanceForm() {
   const [isLoading, setIsLoading] = useState(false);
+  const [isCommunesLoading, setIsCommunesLoading] = useState(true);
+  const [communes, setCommunes] = useState<Commune[]>([]);
   const router = useRouter();
 
   const form = useForm<FormValues>({
@@ -41,8 +56,32 @@ export default function ActeNaissanceForm() {
       fatherName: "",
       motherName: "",
       reason: "",
+      communeId: "",
     },
   });
+
+  useEffect(() => {
+    const fetchCommunes = async () => {
+      try {
+        setIsCommunesLoading(true);
+        const response = await fetch("/api/communes");
+        
+        if (!response.ok) {
+          throw new Error("Erreur lors de la récupération des communes");
+        }
+        
+        const data = await response.json();
+        setCommunes(data);
+      } catch (error) {
+        console.error("Error fetching communes:", error);
+        toast.error("Impossible de charger les communes");
+      } finally {
+        setIsCommunesLoading(false);
+      }
+    };
+
+    fetchCommunes();
+  }, []);
 
   const onSubmit = async (data: FormValues) => {
     try {
@@ -55,11 +94,13 @@ export default function ActeNaissanceForm() {
         body: JSON.stringify(data),
       });
 
+      const result = await response.json();
+
       if (!response.ok) {
-        throw new Error("Erreur lors de la soumission de la demande");
+        const errorMessage = result.message || "Erreur lors de la soumission de la demande";
+        throw new Error(errorMessage);
       }
 
-      const result = await response.json();
       toast.success("Demande d'acte de naissance soumise avec succès");
       form.reset();
       
@@ -67,7 +108,11 @@ export default function ActeNaissanceForm() {
       router.push(`/citizen/document/${result.data.id}`);
     } catch (error) {
       console.error("Erreur:", error);
-      toast.error("Erreur lors de la soumission de la demande");
+      if (error instanceof Error && error.message === 'Aucun agent trouvé pour la commune sélectionnée') {
+        router.push('/error/no-agent-found');
+      } else {
+        toast.error(error instanceof Error ? error.message : "Erreur lors de la soumission de la demande");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -154,6 +199,49 @@ export default function ActeNaissanceForm() {
               <FormLabel>Raison de la demande</FormLabel>
               <FormControl>
                 <Input placeholder="Entrez la raison de votre demande" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="communeId"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Commune</FormLabel>
+              <FormControl>
+                <Select
+                  value={field.value}
+                  onValueChange={field.onChange}
+                  disabled={isCommunesLoading}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={
+                      isCommunesLoading 
+                        ? "Chargement des communes..." 
+                        : "Sélectionner une commune"
+                    } />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {isCommunesLoading ? (
+                      <SelectItem value="loading" disabled>
+                        Chargement...
+                      </SelectItem>
+                    ) : communes.length === 0 ? (
+                      <SelectItem value="no-communes" disabled>
+                        Aucune commune disponible
+                      </SelectItem>
+                    ) : (
+                      communes.map(commune => (
+                        <SelectItem key={commune._id} value={commune._id}>
+                          {commune.name}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
               </FormControl>
               <FormMessage />
             </FormItem>

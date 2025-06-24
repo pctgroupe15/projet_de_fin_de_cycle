@@ -100,7 +100,7 @@ export default function LoginPage() {
               Inscrivez-vous ici
             </Link>
           </p>
-          <p className="mt-2 text-sm text-muted-foreground">
+          {/* <p className="mt-2 text-sm text-muted-foreground">
             Vous êtes un agent ou un administrateur ?{" "}
             <Link href="/auth/agent-login" className="text-primary hover:underline">
               Connexion Agent
@@ -109,7 +109,7 @@ export default function LoginPage() {
             <Link href="/auth/admin-login" className="text-primary hover:underline">
               Connexion Admin
             </Link>
-          </p>
+          </p> */}
         </div>
         
         <div className="mt-8 bg-white p-8 rounded-lg shadow-sm border animation-slideUp">

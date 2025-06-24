@@ -1,7 +1,12 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { prisma } from '@/lib/prisma';
+import { getDb } from '@/lib/mongodb';
+import { ObjectId } from 'mongodb';
+
+function isValidObjectId(id: string) {
+  return typeof id === 'string' && /^[a-fA-F0-9]{24}$/.test(id);
+}
 
 export async function GET(
   request: Request,
@@ -17,20 +22,37 @@ export async function GET(
       );
     }
 
-    const birthCertificate = await prisma.birthCertificate.findUnique({
-      where: {
-        id: params.id,
+    if (!isValidObjectId(params.id)) {
+      return NextResponse.json(
+        { success: false, message: "ID invalide" },
+        { status: 400 }
+      );
+    }
+
+    const db = await getDb();
+    const birthCertificateArr = await db.collection('BirthCertificate').aggregate([
+      { $match: { _id: new ObjectId(params.id) } },
+      { $lookup: {
+          from: 'Citizen',
+          localField: 'citizenId',
+          foreignField: '_id',
+          as: 'citizenArr'
+        }
       },
-      include: {
-        citizen: {
-          select: {
-            name: true,
-            email: true,
-          },
-        },
-        files: true,
+      { $addFields: {
+          citizen: { $arrayElemAt: ['$citizenArr', 0] }
+        }
       },
-    });
+      { $lookup: {
+          from: 'Document',
+          localField: '_id',
+          foreignField: 'birthCertificateId',
+          as: 'files'
+        }
+      },
+      { $project: { citizenArr: 0 } }
+    ]).toArray();
+    const birthCertificate = birthCertificateArr[0];
 
     if (!birthCertificate) {
       return NextResponse.json(
@@ -39,9 +61,15 @@ export async function GET(
       );
     }
 
+    // Transformer les données pour inclure l'ID dans le bon format
+    const transformedData = {
+      id: birthCertificate._id.toString(),
+      ...birthCertificate
+    };
+
     return NextResponse.json({
       success: true,
-      data: birthCertificate
+      data: transformedData
     });
   } catch (error) {
     console.error("[BIRTH_CERTIFICATE_GET]", error);

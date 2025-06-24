@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { getDb } from '@/lib/mongodb';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { RequestStatus } from '@prisma/client';
 
 export async function GET() {
   try {
@@ -14,25 +13,26 @@ export async function GET() {
       );
     }
 
+    const db = await getDb();
     // Récupérer toutes les demandes
     const [birthCertificates, birthDeclarations] = await Promise.all([
-      prisma.birthCertificate.findMany(),
-      prisma.birthDeclaration.findMany()
+      db.collection('BirthCertificate').find().toArray(),
+      db.collection('BirthDeclaration').find().toArray()
     ]);
 
     // Calculer les statistiques pour chaque type
     const birthCertificatesStats = {
       total: birthCertificates.length,
-      pending: birthCertificates.filter(d => d.status === RequestStatus.PENDING).length,
-      approved: birthCertificates.filter(d => d.status === RequestStatus.COMPLETED).length,
-      rejected: birthCertificates.filter(d => d.status === RequestStatus.REJECTED).length
+      pending: birthCertificates.filter(d => d.status === 'PENDING').length,
+      approved: birthCertificates.filter(d => d.status === 'COMPLETED').length,
+      rejected: birthCertificates.filter(d => d.status === 'REJECTED').length
     };
 
     const birthDeclarationsStats = {
       total: birthDeclarations.length,
-      pending: birthDeclarations.filter(d => d.status === RequestStatus.PENDING).length,
-      approved: birthDeclarations.filter(d => d.status === RequestStatus.COMPLETED).length,
-      rejected: birthDeclarations.filter(d => d.status === RequestStatus.REJECTED).length
+      pending: birthDeclarations.filter(d => d.status === 'PENDING').length,
+      approved: birthDeclarations.filter(d => d.status === 'COMPLETED').length,
+      rejected: birthDeclarations.filter(d => d.status === 'REJECTED').length
     };
 
     // Combiner toutes les demandes pour les statistiques générales
@@ -49,9 +49,9 @@ export async function GET() {
 
     const requestsStats = {
       total: allRequests.length,
-      pending: allRequests.filter(req => req.status === RequestStatus.PENDING).length,
-      approved: allRequests.filter(req => req.status === RequestStatus.COMPLETED).length,
-      rejected: allRequests.filter(req => req.status === RequestStatus.REJECTED).length
+      pending: allRequests.filter(req => (req as any).status === 'PENDING').length,
+      approved: allRequests.filter(req => (req as any).status === 'COMPLETED').length,
+      rejected: allRequests.filter(req => (req as any).status === 'REJECTED').length
     };
 
     return NextResponse.json({

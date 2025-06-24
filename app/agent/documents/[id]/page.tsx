@@ -54,8 +54,20 @@ const DocumentDetails = ({ params }: { params: { id: string } }) => {
 
   const fetchRequestDetails = useCallback(async () => {
     try {
-      const response = await fetch(`/api/agent/birth-certificates/${params.id}`);
-      const data = await response.json();
+      // Essayer d'abord de récupérer un acte de naissance
+      let response = await fetch(`/api/agent/birth-certificates/${params.id}`);
+      let data = await response.json();
+      
+      if (data.success) {
+        setRequest(data.data);
+        setComment(data.data.comment || '');
+        return;
+      }
+      
+      // Si ce n'est pas un acte de naissance, essayer une déclaration de naissance
+      response = await fetch(`/api/agent/birth-declarations/${params.id}`);
+      data = await response.json();
+      
       if (data.success) {
         setRequest(data.data);
         setComment(data.data.comment || '');
@@ -77,7 +89,9 @@ const DocumentDetails = ({ params }: { params: { id: string } }) => {
   const updateRequestStatus = useCallback(async (newStatus: string) => {
     try {
       setUpdating(true);
-      const response = await fetch(`/api/agent/birth-certificates?id=${params.id}`, {
+      
+      // Essayer d'abord de mettre à jour un acte de naissance
+      let response = await fetch(`/api/agent/birth-certificates?id=${params.id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -88,7 +102,28 @@ const DocumentDetails = ({ params }: { params: { id: string } }) => {
         }),
       });
 
-      const data = await response.json();
+      let data = await response.json();
+      
+      if (data.success) {
+        toast.success('Statut mis à jour avec succès');
+        fetchRequestDetails();
+        setIsModalOpen(false);
+        return;
+      }
+      
+      // Si ce n'est pas un acte de naissance, essayer une déclaration de naissance
+      response = await fetch(`/api/agent/birth-declarations/${params.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          status: newStatus,
+        }),
+      });
+
+      data = await response.json();
+      
       if (data.success) {
         toast.success('Statut mis à jour avec succès');
         fetchRequestDetails();
@@ -145,17 +180,19 @@ const DocumentDetails = ({ params }: { params: { id: string } }) => {
       formData.append('file', selectedFile);
 
       try {
-        const uploadResponse = await fetch(`/api/agent/birth-certificates/${params.id}/upload-final-document`, {
+        // Essayer d'abord l'upload pour un acte de naissance
+        let uploadResponse = await fetch(`/api/agent/birth-certificates/${params.id}/upload-final-document`, {
           method: 'POST',
           body: formData,
         });
 
-        const uploadData = await uploadResponse.json();
+        let uploadData = await uploadResponse.json();
 
         if (!uploadData.success) {
-          toast.error(uploadData.message || 'Erreur lors du téléversement du document final.');
-          setUpdating(false);
-          return;
+          // Si ce n'est pas un acte de naissance, essayer une déclaration de naissance
+          // Note: Pour les déclarations de naissance, on peut simplement mettre à jour le statut
+          // car l'upload de document final n'est pas implémenté pour les déclarations
+          console.log('Upload pour acte de naissance échoué, tentative pour déclaration de naissance');
         }
 
         await updateRequestStatus(newStatus);

@@ -1,56 +1,8 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { BirthCertificate, BirthDeclaration, Document } from '@prisma/client';
-
-type BirthCertificateWithFiles = BirthCertificate & {
-  files: Document[];
-  payment?: {
-    id: string;
-    status: string;
-    amount: number;
-  } | null;
-};
-
-type BirthDeclarationWithDocuments = BirthDeclaration & {
-  documents: Document[];
-  payment?: {
-    id: string;
-    status: string;
-    amount: number;
-  } | null;
-};
-
-interface DocumentFile {
-  id: string;
-  type: string;
-  url: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-interface DocumentResponse {
-  id: string;
-  documentType: 'birth_certificate' | 'birth_declaration';
-  fullName: string;
-  birthDate: Date;
-  birthPlace: string;
-  fatherFullName?: string;
-  motherFullName?: string;
-  status: string;
-  trackingNumber: string;
-  rejectReason?: string | null;
-  comment?: string | null;
-  createdAt: Date;
-  updatedAt: Date;
-  files: DocumentFile[];
-  payment?: {
-    id: string;
-    status: string;
-    amount: number;
-  } | null;
-}
+import { getDb } from '@/lib/mongodb';
+import { ObjectId } from 'mongodb';
 
 export async function GET(
   request: Request,
@@ -66,21 +18,49 @@ export async function GET(
       );
     }
 
+    // Validation de l'ID
+    if (!params.id || params.id === 'undefined') {
+      return NextResponse.json(
+        { success: false, message: 'ID de document invalide' },
+        { status: 400 }
+      );
+    }
+
+    // Validation du format ObjectId
+    if (!/^[a-fA-F0-9]{24}$/.test(params.id)) {
+      return NextResponse.json(
+        { success: false, message: 'Format d\'ID invalide' },
+        { status: 400 }
+      );
+    }
+
+    const db = await getDb();
     // Essayer d'abord de trouver un acte de naissance
-    const birthCertificate = await prisma.birthCertificate.findUnique({
-      where: {
-        id: params.id,
-        citizenId: session.user.id
+    const birthCertificate = await db.collection('BirthCertificate').aggregate([
+      { $match: { _id: new ObjectId(params.id), citizenId: new ObjectId(session.user.id) } },
+      { $lookup: {
+          from: 'Document',
+          localField: '_id',
+          foreignField: 'birthCertificateId',
+          as: 'files'
+        }
       },
-      include: {
-        files: true,
-        payment: true
+      { $lookup: {
+          from: 'Payment',
+          localField: '_id',
+          foreignField: 'birthCertificateId',
+          as: 'paymentArr'
+        }
+      },
+      { $addFields: {
+          payment: { $arrayElemAt: ['$paymentArr', 0] }
+        }
       }
-    }) as BirthCertificateWithFiles | null;
+    ]).next();
 
     if (birthCertificate) {
-      const response: DocumentResponse = {
-        id: birthCertificate.id,
+      const response = {
+        id: birthCertificate._id,
         documentType: 'birth_certificate',
         fullName: birthCertificate.fullName,
         birthDate: birthCertificate.birthDate,
@@ -89,18 +69,22 @@ export async function GET(
         motherFullName: birthCertificate.motherFullName || undefined,
         status: birthCertificate.status,
         trackingNumber: birthCertificate.trackingNumber,
-        rejectReason: (birthCertificate as any).rejectReason,
+        rejectReason: birthCertificate.rejectReason,
         comment: birthCertificate.comment,
         createdAt: birthCertificate.createdAt,
         updatedAt: birthCertificate.updatedAt,
-        files: birthCertificate.files.map(file => ({
-          id: file.id,
+        files: (birthCertificate.files || []).map((file: any) => ({
+          id: file._id,
           type: file.type,
           url: file.url,
           createdAt: file.createdAt,
           updatedAt: file.updatedAt
         })),
-        payment: birthCertificate.payment
+        payment: birthCertificate.payment ? {
+          id: birthCertificate.payment._id,
+          status: birthCertificate.payment.status,
+          amount: birthCertificate.payment.amount
+        } : null
       };
 
       return NextResponse.json({
@@ -110,20 +94,31 @@ export async function GET(
     }
 
     // Si ce n'est pas un acte de naissance, chercher une déclaration de naissance
-    const birthDeclaration = await prisma.birthDeclaration.findUnique({
-      where: {
-        id: params.id,
-        citizenId: session.user.id
+    const birthDeclaration = await db.collection('BirthDeclaration').aggregate([
+      { $match: { _id: new ObjectId(params.id), citizenId: new ObjectId(session.user.id) } },
+      { $lookup: {
+          from: 'Document',
+          localField: '_id',
+          foreignField: 'birthDeclarationId',
+          as: 'documents'
+        }
       },
-      include: {
-        documents: true,
-        payment: true
+      { $lookup: {
+          from: 'Payment',
+          localField: '_id',
+          foreignField: 'birthDeclarationId',
+          as: 'paymentArr'
+        }
+      },
+      { $addFields: {
+          payment: { $arrayElemAt: ['$paymentArr', 0] }
+        }
       }
-    }) as BirthDeclarationWithDocuments | null;
+    ]).next();
 
     if (birthDeclaration) {
-      const response: DocumentResponse = {
-        id: birthDeclaration.id,
+      const response = {
+        id: birthDeclaration._id,
         documentType: 'birth_declaration',
         fullName: `${birthDeclaration.childFirstName} ${birthDeclaration.childLastName}`,
         birthDate: birthDeclaration.birthDate,
@@ -131,18 +126,22 @@ export async function GET(
         fatherFullName: `${birthDeclaration.fatherFirstName} ${birthDeclaration.fatherLastName}`,
         motherFullName: `${birthDeclaration.motherFirstName} ${birthDeclaration.motherLastName}`,
         status: birthDeclaration.status,
-        trackingNumber: birthDeclaration.id,
-        rejectReason: (birthDeclaration as any).rejectReason,
+        trackingNumber: birthDeclaration._id,
+        rejectReason: birthDeclaration.rejectReason,
         createdAt: birthDeclaration.createdAt,
         updatedAt: birthDeclaration.updatedAt,
-        files: birthDeclaration.documents.map(doc => ({
-          id: doc.id,
+        files: (birthDeclaration.documents || []).map((doc: any) => ({
+          id: doc._id,
           type: doc.type,
           url: doc.url,
           createdAt: doc.createdAt,
           updatedAt: doc.updatedAt
         })),
-        payment: birthDeclaration.payment
+        payment: birthDeclaration.payment ? {
+          id: birthDeclaration.payment._id,
+          status: birthDeclaration.payment.status,
+          amount: birthDeclaration.payment.amount
+        } : null
       };
 
       return NextResponse.json({

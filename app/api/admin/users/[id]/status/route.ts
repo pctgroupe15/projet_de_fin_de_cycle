@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { getDb } from '@/lib/mongodb';
+import { ObjectId } from 'mongodb';
 
 export async function PATCH(
   req: Request,
@@ -21,22 +22,24 @@ export async function PATCH(
       return new NextResponse("Statut manquant", { status: 400 });
     }
 
-    const user = await prisma.user.update({
-      where: {
-        id: params.userId,
-      },
-      data: {
-        status,
-      },
-    });
+    const db = await getDb();
+    const user = await db.collection('User').findOneAndUpdate(
+      { _id: new ObjectId(params.userId) },
+      { $set: { status } },
+      { returnDocument: 'after' }
+    );
+
+    if (!user.value) {
+      return new NextResponse("Utilisateur non trouvé", { status: 404 });
+    }
 
     return NextResponse.json({
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      status: user.status,
-      createdAt: user.createdAt,
+      id: user.value._id,
+      name: user.value.name,
+      email: user.value.email,
+      role: user.value.role,
+      status: user.value.status,
+      createdAt: user.value.createdAt,
     });
   } catch (error) {
     console.error("Erreur lors de la modification du statut:", error);

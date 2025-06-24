@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { getDb } from '@/lib/mongodb';
+import { ObjectId } from 'mongodb';
 
 export async function GET() {
   try {
@@ -14,28 +15,35 @@ export async function GET() {
       );
     }
 
-    const requests = await prisma.birthCertificate.findMany({
-      where: {
-        citizenId: session.user.id
-      },
-      select: {
-        id: true,
-        fullName: true,
-        birthDate: true,
-        status: true,
-        trackingNumber: true,
-        createdAt: true,
-        files: {
-          select: {
-            type: true,
-            url: true
-          }
+    const db = await getDb();
+    // Récupérer les demandes d'acte de naissance de l'utilisateur
+    const requests = await db.collection('BirthCertificate').aggregate([
+      { $match: { citizenId: new ObjectId(session.user.id) } },
+      { $sort: { createdAt: -1 } },
+      { $lookup: {
+          from: 'Document',
+          localField: '_id',
+          foreignField: 'birthCertificateId',
+          as: 'files'
         }
       },
-      orderBy: {
-        createdAt: 'desc'
+      { $project: {
+          id: '$_id',
+          fullName: 1,
+          birthDate: 1,
+          status: 1,
+          trackingNumber: 1,
+          createdAt: 1,
+          files: {
+            $map: {
+              input: '$files',
+              as: 'file',
+              in: { type: '$$file.type', url: '$$file.url' }
+            }
+          }
+        }
       }
-    });
+    ]).toArray();
 
     return NextResponse.json({
       success: true,

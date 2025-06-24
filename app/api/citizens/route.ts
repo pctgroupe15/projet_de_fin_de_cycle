@@ -78,13 +78,13 @@ export async function POST(request: Request) {
     }
 
     // Hasher le mot de passe
-    const hashedPassword = await bcrypt.hash(body.password, 10);
+    const hashedPasswordValue = await bcrypt.hash(body.password, 10);
     console.log('Mot de passe hashé');
 
     // Créer le nouveau citoyen
-    const newCitizen: Citizen = {
+    const newCitizen: any = {
       ...body,
-      password: hashedPassword,
+      hashedPassword: hashedPasswordValue,
       dateInscription: new Date(),
       statut: 'actif',
       role: 'citizen'
@@ -98,7 +98,7 @@ export async function POST(request: Request) {
     console.log('Insertion réussie, ID:', result.insertedId);
 
     // Ne pas renvoyer le mot de passe dans la réponse
-    const { password, ...citizenWithoutPassword } = newCitizen;
+    const { hashedPassword, ...citizenWithoutPassword } = newCitizen;
 
     return new NextResponse(
       JSON.stringify({ 
@@ -141,7 +141,7 @@ export async function GET() {
     const db = client.db("mairie_db");
     const collection = db.collection("citizens");
 
-    const citizens = await collection.find({}, { projection: { password: 0 } }).toArray();
+    const citizens = await collection.find({}, { projection: { hashedPassword: 0 } }).toArray();
 
     return new NextResponse(
       JSON.stringify({ 

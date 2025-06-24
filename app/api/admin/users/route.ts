@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
+import { getDb } from '@/lib/mongodb';
+import { ObjectId } from 'mongodb';
 
 // GET - Récupérer tous les utilisateurs
 export async function GET(request: Request) {
@@ -20,63 +21,41 @@ export async function GET(request: Request) {
     const role = searchParams.get("role");
 
     let whereClause: any = {};
-
     if (role && role !== "all") {
       whereClause.role = role;
     }
 
+    const db = await getDb();
     // Récupérer les citoyens
-    const citizens = await prisma.citizen.findMany({
-      where: whereClause,
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        status: true,
-        createdAt: true,
-      },
-    });
+    const citizens = await db.collection('Citizen').find(whereClause).project({
+      name: 1, email: 1, role: 1, status: 1, createdAt: 1
+    }).toArray();
 
     // Récupérer les agents
-    const agents = await prisma.agent.findMany({
-      where: whereClause,
-      select: {
-        id: true,
-        firstName: true,
-        lastName: true,
-        email: true,
-        role: true,
-        status: true,
-        createdAt: true,
-      },
-    });
+    const agents = await db.collection('Agent').find(whereClause).project({
+      firstName: 1, lastName: 1, email: 1, role: 1, status: 1, createdAt: 1
+    }).toArray();
 
     // Récupérer les administrateurs
-    const admins = await prisma.admin.findMany({
-      where: whereClause,
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        status: true,
-        createdAt: true,
-      },
-    });
+    const admins = await db.collection('User').find(whereClause).project({
+      name: 1, email: 1, role: 1, status: 1, createdAt: 1
+    }).toArray();
 
     // Combiner tous les utilisateurs avec un format cohérent
     const users = [
-      ...citizens.map(user => ({
+      ...citizens.map((user: any) => ({
         ...user,
+        id: user._id,
         displayName: user.name || "Sans nom",
       })),
-      ...agents.map(user => ({
+      ...agents.map((user: any) => ({
         ...user,
+        id: user._id,
         displayName: `${user.firstName} ${user.lastName}`,
       })),
-      ...admins.map(user => ({
+      ...admins.map((user: any) => ({
         ...user,
+        id: user._id,
         displayName: user.name || "Sans nom",
       })),
     ];
@@ -104,7 +83,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { name, email, password, role } = body;
+    const { name, email, password, role, commune } = body;
 
     if (!name || !email || !password || !role) {
       return NextResponse.json(
@@ -113,10 +92,19 @@ export async function POST(request: Request) {
       );
     }
 
-    // Vérifier si l'email existe déjà
-    const existingUser = await prisma.citizen.findUnique({
-      where: { email },
-    });
+    // Validation spécifique pour les agents
+    if (role === "agent" && !commune) {
+      return NextResponse.json(
+        { success: false, message: "La commune est requise pour un agent" },
+        { status: 400 }
+      );
+    }
+
+    const db = await getDb();
+    // Vérifier si l'email existe déjà (dans Citizen, Agent ou User)
+    const existingUser = await db.collection('Citizen').findOne({ email })
+      || await db.collection('Agent').findOne({ email })
+      || await db.collection('User').findOne({ email });
 
     if (existingUser) {
       return NextResponse.json(
@@ -132,39 +120,51 @@ export async function POST(request: Request) {
     let user;
     switch (role) {
       case "citizen":
-        user = await prisma.citizen.create({
-          data: {
-            name,
-            email,
-            hashedPassword,
-            role: "citizen",
-            status: "active",
-          },
+        user = await db.collection('Citizen').insertOne({
+          name,
+          email,
+          hashedPassword,
+          role: "citizen",
+          status: "active",
+          createdAt: new Date(),
         });
+        user = await db.collection('Citizen').findOne({ _id: user.insertedId });
         break;
       case "agent":
         const [firstName, ...lastNameParts] = name.split(" ");
-        user = await prisma.agent.create({
-          data: {
-            firstName,
-            lastName: lastNameParts.join(" "),
-            email,
-            hashedPassword,
-            role: "agent",
-            status: "active",
-          },
+        
+        // Trouver l'ID de la commune si elle est fournie
+        let communeId = undefined;
+        if (commune) {
+          const communeDoc = await db.collection('Commune').findOne({ name: commune });
+          if (communeDoc) {
+            communeId = communeDoc._id;
+          }
+        }
+        
+        user = await db.collection('Agent').insertOne({
+          firstName,
+          lastName: lastNameParts.join(" "),
+          email,
+          hashedPassword,
+          role: "agent",
+          commune: commune || '',
+          communeId,
+          status: "active",
+          createdAt: new Date(),
         });
+        user = await db.collection('Agent').findOne({ _id: user.insertedId });
         break;
       case "admin":
-        user = await prisma.admin.create({
-          data: {
-            name,
-            email,
-            hashedPassword,
-            role: "admin",
-            status: "active",
-          },
+        user = await db.collection('User').insertOne({
+          name,
+          email,
+          hashedPassword,
+          role: "admin",
+          status: "active",
+          createdAt: new Date(),
         });
+        user = await db.collection('User').findOne({ _id: user.insertedId });
         break;
       default:
         return NextResponse.json(
@@ -173,10 +173,17 @@ export async function POST(request: Request) {
         );
     }
 
+    if (!user) {
+      return NextResponse.json(
+        { success: false, message: "Erreur lors de la création de l'utilisateur (user null)" },
+        { status: 500 }
+      );
+    }
+
     return NextResponse.json({
       success: true,
       data: {
-        id: user.id,
+        id: user._id,
         name: "firstName" in user 
           ? `${user.firstName} ${user.lastName}`
           : user.name || "Sans nom",

@@ -7,12 +7,12 @@ const services = [
   {
     title: "Actes de Naissance",
     description: "Demandez des copies ou extraits d'actes de naissance en quelques étapes simples.",
-    icon: "https://images.pexels.com/photos/568027/pexels-photo-568027.jpeg"
+    icon: "https://connectionivoirienne.net/wp-content/uploads/2024/12/460851995_3784141655192038_2949412497533125947_n-768x512.jpg"
   },
   {
     title: "Certificats de Mariage",
     description: "Obtenez des certificats de mariage pour vos démarches administratives.",
-    icon: "https://images.pexels.com/photos/1128318/pexels-photo-1128318.jpeg"
+    icon: "https://wp-medias-carnet.leparisien.fr/2022/02/52294e43-gettyimages-1048304440.jpg"
   },
   {
     title: "Documents d'Identité",

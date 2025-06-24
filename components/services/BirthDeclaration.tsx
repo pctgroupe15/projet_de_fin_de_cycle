@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -17,6 +17,8 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { ReceptionModeSelect } from "@/components/forms/reception-mode-select";
 import { BirthCertificateUpload } from "@/components/forms/birth-certificate-upload";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import { useRouter } from "next/navigation";
 
 const formSchema = z.object({
   childName: z.string().min(2, "Le nom de l'enfant est requis"),
@@ -34,13 +36,17 @@ const formSchema = z.object({
     }),
   receptionMode: z.string().min(1, "Le mode de réception est requis"),
   deliveryAddress: z.string().optional(),
+  communeId: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
 
 export default function BirthDeclaration() {
   const [isLoading, setIsLoading] = useState(false);
+  const [isCommunesLoading, setIsCommunesLoading] = useState(true);
   const [birthCertificateFile, setBirthCertificateFile] = useState<File | null>(null);
+  const [communes, setCommunes] = useState<{ _id: string, name: string }[]>([]);
+  const router = useRouter();
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -56,6 +62,29 @@ export default function BirthDeclaration() {
       deliveryAddress: "",
     },
   });
+
+  useEffect(() => {
+    const fetchCommunes = async () => {
+      try {
+        setIsCommunesLoading(true);
+        const response = await fetch("/api/communes");
+        
+        if (!response.ok) {
+          throw new Error("Erreur lors de la récupération des communes");
+        }
+        
+        const data = await response.json();
+        setCommunes(data);
+      } catch (error) {
+        console.error("Error fetching communes:", error);
+        toast.error("Impossible de charger les communes");
+      } finally {
+        setIsCommunesLoading(false);
+      }
+    };
+
+    fetchCommunes();
+  }, []);
 
   const handleBirthCertificateSelect = (file: File) => {
     setBirthCertificateFile(file);
@@ -79,7 +108,9 @@ export default function BirthDeclaration() {
       });
 
       if (!response.ok) {
-        throw new Error("Erreur lors de la soumission de la déclaration");
+        const result = await response.json();
+        const errorMessage = result.error || "Erreur lors de la soumission de la déclaration";
+        throw new Error(errorMessage);
       }
 
       const result = await response.json();
@@ -103,9 +134,16 @@ export default function BirthDeclaration() {
       toast.success("Déclaration de naissance soumise avec succès");
       form.reset();
       setBirthCertificateFile(null);
+      
+      // Rediriger vers la page de détails
+      router.push(`/citizen/document/${result.data.id}`);
     } catch (error) {
       console.error("Erreur:", error);
-      toast.error("Erreur lors de la soumission de la déclaration");
+      if (error instanceof Error && error.message === 'Aucun agent trouvé pour la commune sélectionnée') {
+        router.push('/error/no-agent-found');
+      } else {
+        toast.error(error instanceof Error ? error.message : "Erreur lors de la soumission de la déclaration");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -233,6 +271,49 @@ export default function BirthDeclaration() {
                   address={form.watch('deliveryAddress')}
                   onAddressChange={(address) => form.setValue('deliveryAddress', address)}
                 />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="communeId"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Commune</FormLabel>
+              <FormControl>
+                <Select
+                  value={field.value}
+                  onValueChange={field.onChange}
+                  disabled={isCommunesLoading}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={
+                      isCommunesLoading 
+                        ? "Chargement des communes..." 
+                        : "Sélectionner une commune"
+                    } />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {isCommunesLoading ? (
+                      <SelectItem value="loading" disabled>
+                        Chargement...
+                      </SelectItem>
+                    ) : communes.length === 0 ? (
+                      <SelectItem value="no-communes" disabled>
+                        Aucune commune disponible
+                      </SelectItem>
+                    ) : (
+                      communes.map(commune => (
+                        <SelectItem key={commune._id} value={commune._id}>
+                          {commune.name}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
               </FormControl>
               <FormMessage />
             </FormItem>

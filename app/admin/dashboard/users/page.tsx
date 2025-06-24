@@ -111,9 +111,11 @@ export default function UsersPage() {
       });
 
       if (!response.ok) {
-        throw new Error("Failed to update user status");
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to update user status");
       }
 
+      const result = await response.json();
       setUsers(users.map(user => 
         user.id === userId 
           ? { ...user, status: newStatus }
@@ -122,13 +124,13 @@ export default function UsersPage() {
 
       toast({
         title: "Succès",
-        description: "Statut de l'utilisateur mis à jour",
+        description: result.message || "Statut de l'utilisateur mis à jour",
       });
     } catch (error) {
       console.error("Error updating user status:", error);
       toast({
         title: "Erreur",
-        description: "Impossible de mettre à jour le statut de l'utilisateur",
+        description: error instanceof Error ? error.message : "Impossible de mettre à jour le statut de l'utilisateur",
         variant: "destructive",
       });
     }
@@ -150,9 +152,11 @@ export default function UsersPage() {
       });
 
       if (!response.ok) {
-        throw new Error("Failed to update user");
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to update user");
       }
 
+      const result = await response.json();
       setUsers(users.map(u => 
         u.id === user.id ? user : u
       ));
@@ -162,13 +166,13 @@ export default function UsersPage() {
 
       toast({
         title: "Succès",
-        description: "Utilisateur mis à jour avec succès",
+        description: result.message || "Utilisateur mis à jour avec succès",
       });
     } catch (error) {
       console.error("Error updating user:", error);
       toast({
         title: "Erreur",
-        description: "Impossible de mettre à jour l'utilisateur",
+        description: error instanceof Error ? error.message : "Impossible de mettre à jour l'utilisateur",
         variant: "destructive",
       });
     }
@@ -185,19 +189,21 @@ export default function UsersPage() {
       });
 
       if (!response.ok) {
-        throw new Error("Failed to delete user");
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to delete user");
       }
 
+      const result = await response.json();
       setUsers(users.filter((u) => u.id !== user.id));
       toast({
         title: "Succès",
-        description: "Utilisateur supprimé avec succès",
+        description: result.message || "Utilisateur supprimé avec succès",
       });
     } catch (error) {
       console.error("Error deleting user:", error);
       toast({
         title: "Erreur",
-        description: "Impossible de supprimer l'utilisateur",
+        description: error instanceof Error ? error.message : "Impossible de supprimer l'utilisateur",
         variant: "destructive",
       });
     }

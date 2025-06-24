@@ -50,6 +50,15 @@ export async function POST(request: Request) {
 
     // Vérifier que l'agent a bien été créé
     const createdAgent = await db.collection('agents').findOne({ _id: result.insertedId });
+
+    if (!createdAgent) {
+      console.error("L'agent vient d'être inséré, mais n'a pas été retrouvé immédiatement après.");
+      return NextResponse.json(
+        { error: "Échec lors de la récupération de l'agent après création." },
+        { status: 500 }
+      );
+    }
+
     console.log('Agent créé:', {
       id: createdAgent._id,
       email: createdAgent.email,
@@ -57,6 +66,7 @@ export async function POST(request: Request) {
       role: createdAgent.role,
       status: createdAgent.status
     });
+
 
     // Retourner l'agent créé (sans le mot de passe)
     const response = {

@@ -40,15 +40,23 @@ interface Agent {
   status: "active" | "inactive";
 }
 
+interface Commune {
+  _id: string;
+  name: string;
+}
+
 export default function AgentsManagementPage() {
   const [agents, setAgents] = useState<Agent[]>([]);
+  const [communes, setCommunes] = useState<Commune[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isCommunesLoading, setIsCommunesLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
     email: "",
+    password: "",
     role: "",
     commune: "",
     status: "active"
@@ -56,6 +64,7 @@ export default function AgentsManagementPage() {
 
   useEffect(() => {
     fetchAgents();
+    fetchCommunes();
   }, []);
 
   const fetchAgents = async () => {
@@ -75,8 +84,42 @@ export default function AgentsManagementPage() {
     }
   };
 
+  const fetchCommunes = async () => {
+    try {
+      setIsCommunesLoading(true);
+      const response = await fetch("/api/admin/communes");
+      
+      if (!response.ok) {
+        throw new Error("Erreur lors de la récupération des communes");
+      }
+      
+      const data = await response.json();
+      setCommunes(data);
+    } catch (error) {
+      console.error("Error fetching communes:", error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de charger les communes",
+        variant: "destructive",
+      });
+    } finally {
+      setIsCommunesLoading(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validation
+    if (!formData.commune) {
+      toast({
+        title: "Erreur",
+        description: "Veuillez sélectionner une commune",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     try {
       const url = selectedAgent 
         ? `/api/admin/agents/${selectedAgent.id}`
@@ -88,7 +131,10 @@ export default function AgentsManagementPage() {
         body: JSON.stringify(formData),
       });
 
-      if (!response.ok) throw new Error("Erreur lors de l'opération");
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Erreur lors de l'opération");
+      }
 
       toast({
         title: "Succès",
@@ -102,7 +148,7 @@ export default function AgentsManagementPage() {
     } catch (error) {
       toast({
         title: "Erreur",
-        description: "Une erreur est survenue",
+        description: error instanceof Error ? error.message : "Une erreur est survenue",
         variant: "destructive",
       });
     }
@@ -116,7 +162,10 @@ export default function AgentsManagementPage() {
         method: "DELETE",
       });
 
-      if (!response.ok) throw new Error("Erreur lors de la suppression");
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Erreur lors de la suppression");
+      }
 
       toast({
         title: "Succès",
@@ -127,7 +176,7 @@ export default function AgentsManagementPage() {
     } catch (error) {
       toast({
         title: "Erreur",
-        description: "Impossible de supprimer l'agent",
+        description: error instanceof Error ? error.message : "Impossible de supprimer l'agent",
         variant: "destructive",
       });
     }
@@ -139,6 +188,7 @@ export default function AgentsManagementPage() {
       firstName: agent.firstName,
       lastName: agent.lastName,
       email: agent.email,
+      password: "",
       role: agent.role,
       commune: agent.commune,
       status: agent.status
@@ -152,6 +202,7 @@ export default function AgentsManagementPage() {
       firstName: "",
       lastName: "",
       email: "",
+      password: "",
       role: "",
       commune: "",
       status: "active"
@@ -266,6 +317,21 @@ export default function AgentsManagementPage() {
                   required
                 />
               </div>
+              {!selectedAgent && (
+                <div className="space-y-2">
+                  <Label htmlFor="password">Mot de passe</Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    value={formData.password}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    placeholder="Laissez vide pour utiliser le mot de passe par défaut"
+                  />
+                  <p className="text-sm text-muted-foreground">
+                    Si aucun mot de passe n'est fourni, le mot de passe par défaut sera "password123"
+                  </p>
+                </div>
+              )}
               <div className="space-y-2">
                 <Label htmlFor="role">Rôle</Label>
                 <Select
@@ -282,17 +348,35 @@ export default function AgentsManagementPage() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="commune">Commune</Label>
+                <Label htmlFor="commune">Commune *</Label>
                 <Select
                   value={formData.commune}
                   onValueChange={(value) => setFormData({ ...formData, commune: value })}
+                  disabled={isCommunesLoading}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Sélectionner une commune" />
+                    <SelectValue placeholder={
+                      isCommunesLoading 
+                        ? "Chargement des communes..." 
+                        : "Sélectionner une commune"
+                    } />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="commune1">Commune 1</SelectItem>
-                    <SelectItem value="commune2">Commune 2</SelectItem>
+                    {isCommunesLoading ? (
+                      <SelectItem value="loading" disabled>
+                        Chargement...
+                      </SelectItem>
+                    ) : communes.length === 0 ? (
+                      <SelectItem value="no-communes" disabled>
+                        Aucune commune disponible
+                      </SelectItem>
+                    ) : (
+                      communes.map((commune) => (
+                        <SelectItem key={commune._id} value={commune.name}>
+                          {commune.name}
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
               </div>

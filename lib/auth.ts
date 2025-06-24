@@ -1,17 +1,13 @@
 import { getServerSession } from "next-auth/next";
 import { AuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
-import bcrypt from "bcryptjs";
-import { PrismaClient } from "@prisma/client";
+import bcrypt, { compare } from "bcryptjs";
 import { JWT } from "next-auth/jwt";
 import { Session } from "next-auth";
 import { CustomUser, CustomToken, CustomSession } from "@/types/auth";
 import { UserRole } from '@/types/user';
-import { PrismaAdapter } from "@auth/prisma-adapter";
-import { compare } from "bcryptjs";
 import { NextAuthOptions } from "next-auth";
-
-const prisma = new PrismaClient();
+import { getDb } from '@/lib/mongodb';
 
 // API URL
 const API_URL = 'http://localhost:3000/api';
@@ -207,26 +203,21 @@ export const authOptions: NextAuthOptions = {
 
           let user = null;
           let collection = "";
+          const db = await getDb();
 
           // Sélection de la collection appropriée selon le rôle
           switch (credentials.role) {
             case "citizen":
-              collection = "citizens";
-              user = await prisma.citizen.findUnique({
-                where: { email: credentials.email }
-              });
+              collection = "Citizen";
+              user = await db.collection(collection).findOne({ email: credentials.email });
               break;
             case "agent":
-              collection = "agents";
-              user = await prisma.agent.findUnique({
-                where: { email: credentials.email }
-              });
+              collection = "Agent";
+              user = await db.collection(collection).findOne({ email: credentials.email });
               break;
             case "admin":
-              collection = "users";
-              user = await prisma.user.findUnique({
-                where: { email: credentials.email }
-              });
+              collection = "User";
+              user = await db.collection(collection).findOne({ email: credentials.email });
               break;
             default:
               throw new Error("Rôle non valide");
@@ -238,7 +229,7 @@ export const authOptions: NextAuthOptions = {
           }
 
           console.log("[Auth] Utilisateur trouvé:", {
-            id: user.id,
+            id: user.id || user._id,
             email: user.email,
             role: user.role,
             collection
@@ -246,7 +237,18 @@ export const authOptions: NextAuthOptions = {
 
           // Vérification du mot de passe avec bcrypt
           try {
-            const isPasswordValid = await compare(credentials.password, user.hashedPassword);
+            let isPasswordValid = false;
+            
+            // Essayer d'abord avec hashedPassword (nouveau format)
+            if (user.hashedPassword) {
+              isPasswordValid = await compare(credentials.password, user.hashedPassword);
+            }
+            
+            // Si ça ne marche pas, essayer avec password (ancien format)
+            if (!isPasswordValid && user.password) {
+              isPasswordValid = await compare(credentials.password, user.password);
+            }
+            
             console.log("[Auth] Résultat de la vérification du mot de passe:", isPasswordValid);
 
             if (!isPasswordValid) {
@@ -258,8 +260,19 @@ export const authOptions: NextAuthOptions = {
             throw new Error("Erreur lors de la vérification du mot de passe");
           }
 
+          // Fonction pour obtenir le nom correctement
+          const getUserName = (user: any): string => {
+            if ('name' in user && user.name) {
+              return user.name;
+            }
+            if ('firstName' in user && 'lastName' in user) {
+              return `${user.firstName} ${user.lastName}`;
+            }
+            return "Utilisateur";
+          };
+
           console.log("[Auth] Connexion réussie pour:", {
-            id: user.id,
+            id: user.id || user._id,
             email: user.email,
             role: user.role,
             collection
@@ -267,10 +280,10 @@ export const authOptions: NextAuthOptions = {
 
           // Retourner les informations de l'utilisateur
           return {
-            id: user.id,
+            id: user.id || user._id,
             email: user.email,
-            name: user.name || `${user.firstName} ${user.lastName}`,
-            role: user.role,
+            name: getUserName(user),
+            role: user.role as UserRole,
           };
         } catch (error) {
           console.error("[Auth] Erreur d'authentification:", error);
@@ -290,7 +303,7 @@ export const authOptions: NextAuthOptions = {
     async session({ session, token }) {
       if (token) {
         session.user.id = token.id;
-        session.user.role = token.role;
+        session.user.role = token.role as UserRole;
       }
       return session;
     },

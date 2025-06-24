@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { getDb } from '@/lib/mongodb';
+import { ObjectId } from 'mongodb';
 
 export async function GET(
   request: Request,
@@ -17,17 +18,19 @@ export async function GET(
       );
     }
 
-    const request = await prisma.birthCertificate.findUnique({
-      where: {
-        id: params.id,
-        citizenId: session.user.id
-      },
-      include: {
-        files: true
+    const db = await getDb();
+    const requestData = await db.collection('BirthCertificate').aggregate([
+      { $match: { _id: new ObjectId(params.id), citizenId: new ObjectId(session.user.id) } },
+      { $lookup: {
+          from: 'Document',
+          localField: '_id',
+          foreignField: 'birthCertificateId',
+          as: 'files'
+        }
       }
-    });
+    ]).next();
 
-    if (!request) {
+    if (!requestData) {
       return NextResponse.json(
         { success: false, message: 'Demande non trouvée' },
         { status: 404 }
@@ -36,7 +39,7 @@ export async function GET(
 
     return NextResponse.json({
       success: true,
-      data: request
+      data: requestData
     });
   } catch (error) {
     console.error('Error fetching request details:', error);

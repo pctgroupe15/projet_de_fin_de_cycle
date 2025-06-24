@@ -53,6 +53,14 @@ const DocumentDetailsPage = ({ params }: { params: { id: string } }) => {
 
   const fetchDocumentDetails = async () => {
     try {
+      // Vérifier que l'ID est valide
+      if (!params.id || params.id === 'undefined') {
+        console.error('ID de document invalide:', params.id);
+        toast.error('ID de document invalide');
+        router.push('/citizen/documents');
+        return;
+      }
+
       const response = await fetch(`/api/citizen/documents/${params.id}`);
       const data = await response.json();
       if (data.success) {
@@ -99,6 +107,12 @@ const DocumentDetailsPage = ({ params }: { params: { id: string } }) => {
   };
 
   const handlePayment = () => {
+    // Vérifier que l'ID est valide
+    if (!params.id || params.id === 'undefined') {
+      toast.error('ID de document invalide');
+      return;
+    }
+    
     router.push(`/citizen/payment?requestId=${params.id}&amount=5000`);
   };
 

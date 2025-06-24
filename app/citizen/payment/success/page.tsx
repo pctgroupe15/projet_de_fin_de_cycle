@@ -41,6 +41,17 @@ export default function PaymentSuccessPage() {
 
         if (data.success) {
           toast.success("Paiement effectué avec succès");
+          
+          // Vérifier que requestId est valide avant la redirection
+          if (!data.requestId || data.requestId === 'undefined') {
+            console.error('RequestId invalide:', data.requestId);
+            toast.error('Erreur: ID de demande invalide');
+            setTimeout(() => {
+              router.push('/citizen/documents');
+            }, 3000);
+            return;
+          }
+          
           // Rediriger vers la page de détails de la demande après 3 secondes
           setTimeout(() => {
             router.push(`/citizen/document/${data.requestId}`);

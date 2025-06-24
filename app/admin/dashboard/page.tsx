@@ -19,9 +19,12 @@ interface DashboardStats {
     active: number;
     new: number;
   };
-  documents: {
-    declarations: number;
-    certificates: number;
+  declarations: {
+    total: number;
+    pending: number;
+    completed: number;
+  };
+  certificates: {
     total: number;
     pending: number;
     completed: number;
@@ -41,7 +44,7 @@ interface DashboardStats {
     status: string;
     createdAt: string;
     name: string;
-    citizen: string;
+    citizen: string | { name: string; email: string };
     email: string;
   }[];
   recentPayments: {
@@ -51,7 +54,7 @@ interface DashboardStats {
     createdAt: string;
     type: string;
     name: string;
-    citizen: string;
+    citizen: string | { name: string; email: string };
     email: string;
   }[];
 }
@@ -70,7 +73,7 @@ export default function DashboardPage() {
       const response = await fetch(`/api/admin/dashboard?timeRange=${timeRange}`);
       if (!response.ok) throw new Error("Erreur lors de la récupération des statistiques");
       const data = await response.json();
-      setStats(data);
+      setStats(data.data);
     } catch (error) {
       console.error("Erreur:", error);
     } finally {
@@ -146,7 +149,7 @@ export default function DashboardPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.documents.total}</div>
+              <div className="text-2xl font-bold">{stats.declarations.total + stats.certificates.total}</div>
             </CardContent>
           </Card>
           <Card>
@@ -156,7 +159,7 @@ export default function DashboardPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.documents.pending}</div>
+              <div className="text-2xl font-bold">{stats.declarations.pending + stats.certificates.pending}</div>
             </CardContent>
           </Card>
           <Card>
@@ -166,7 +169,7 @@ export default function DashboardPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.documents.completed}</div>
+              <div className="text-2xl font-bold">{stats.declarations.completed + stats.certificates.completed}</div>
             </CardContent>
           </Card>
           <Card>
@@ -196,7 +199,7 @@ export default function DashboardPage() {
                     <div>
                       <p className="font-medium">{request.type}</p>
                       <p className="text-sm text-muted-foreground">
-                        {request.citizen}
+                        {typeof request.citizen === 'object' && request.citizen !== null ? (request.citizen as { name: string }).name : request.citizen}
                       </p>
                     </div>
                     <div className="text-right">
@@ -239,7 +242,7 @@ export default function DashboardPage() {
                     <div>
                       <p className="font-medium">{payment.type}</p>
                       <p className="text-sm text-muted-foreground">
-                        {payment.citizen}
+                        {typeof payment.citizen === 'object' && payment.citizen !== null ? (payment.citizen as { name: string }).name : payment.citizen}
                       </p>
                     </div>
                     <div className="text-right">
