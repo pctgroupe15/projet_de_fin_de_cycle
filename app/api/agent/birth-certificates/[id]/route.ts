@@ -78,4 +78,58 @@ export async function GET(
       { status: 500 }
     );
   }
+}
+
+export async function PATCH(request: Request, { params }: { params: { id: string } }) {
+  try {
+    console.log('PATCH birth-certificate - ID reçu:', params.id);
+    const session = await getServerSession(authOptions);
+    if (!session || session.user.role !== "agent") {
+      console.log('PATCH birth-certificate - Non autorisé');
+      return NextResponse.json({ success: false, message: "Non autorisé" }, { status: 401 });
+    }
+    if (!params.id) {
+      console.log('PATCH birth-certificate - ID manquant');
+      return NextResponse.json({ success: false, message: "ID requis" }, { status: 400 });
+    }
+    const data = await request.json();
+    const { status, comment } = data;
+    console.log('PATCH birth-certificate - Données reçues:', { status, comment });
+    if (!status) {
+      console.log('PATCH birth-certificate - Statut manquant');
+      return NextResponse.json({ success: false, message: "Statut manquant" }, { status: 400 });
+    }
+    const db = await getDb();
+    console.log('PATCH birth-certificate - Recherche dans BirthCertificate avec ID:', params.id);
+    
+    // Vérifier d'abord si le document existe
+    const existingCertificate = await db.collection('BirthCertificate').findOne({ _id: new ObjectId(params.id) });
+    if (!existingCertificate) {
+      console.log('PATCH birth-certificate - Acte de naissance non trouvé dans la base');
+      return NextResponse.json({ success: false, message: "Acte de naissance non trouvé" }, { status: 404 });
+    }
+    
+    const birthCertificate = await db.collection('BirthCertificate').findOneAndUpdate(
+      { _id: new ObjectId(params.id) },
+      {
+        $set: {
+          status,
+          comment: comment || null,
+          agentId: session.user.id,
+          updatedAt: new Date(),
+        },
+      },
+      { returnDocument: 'after' }
+    );
+    console.log('PATCH birth-certificate - Résultat findOneAndUpdate:', birthCertificate);
+    if (!birthCertificate) {
+      console.log('PATCH birth-certificate - Erreur lors de la mise à jour');
+      return NextResponse.json({ success: false, message: "Erreur lors de la mise à jour" }, { status: 500 });
+    }
+    console.log('PATCH birth-certificate - Succès');
+    return NextResponse.json({ success: true, data: birthCertificate });
+  } catch (error) {
+    console.error("[BIRTH_CERTIFICATE_PATCH]", error);
+    return NextResponse.json({ success: false, message: "Erreur interne" }, { status: 500 });
+  }
 } 

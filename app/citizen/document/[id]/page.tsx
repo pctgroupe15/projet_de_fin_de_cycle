@@ -297,30 +297,31 @@ const DocumentDetailsPage = ({ params }: { params: { id: string } }) => {
           </CardContent>
         </Card>
 
-        {document.status === 'APPROVED' && document.files.some(file => file.type === 'ACTE_NAISSANCE_FINAL') && (
+        {document.status === 'COMPLETED' && document.files.some(f => f.type === 'ACTE_NAISSANCE_FINAL') && (
           <Card>
             <CardHeader>
-              <CardTitle>Document final</CardTitle>
+              <CardTitle>Votre document est prêt</CardTitle>
             </CardHeader>
             <CardContent>
-              <Alert>
-                <CheckCircle className="h-4 w-4" />
-                <AlertTitle>Votre document est prêt</AlertTitle>
-                <AlertDescription>
-                  <p className="mb-4">Votre document a été validé et est disponible en téléchargement.</p>
-                  <Button
-                    onClick={() => {
-                      const finalDocument = document.files.find(file => file.type === 'ACTE_NAISSANCE_FINAL');
-                      if (finalDocument) {
-                        window.open(finalDocument.url, '_blank');
-                      }
-                    }}
-                  >
-                    <Download className="h-4 w-4 mr-2" />
-                    Télécharger le document final
-                  </Button>
-                </AlertDescription>
-              </Alert>
+              <div className="flex flex-col items-center justify-center space-y-4">
+                <CheckCircle className="h-16 w-16 text-green-500" />
+                <p className="text-lg text-center">
+                  Votre acte de naissance a été validé et est prêt à être téléchargé.
+                </p>
+                <Button
+                  onClick={() => {
+                    const finalDocument = document.files.find(f => f.type === 'ACTE_NAISSANCE_FINAL');
+                    if (finalDocument) {
+                      window.open(finalDocument.url, '_blank');
+                    } else {
+                      toast.error("Le document final n'est pas encore disponible.");
+                    }
+                  }}
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Télécharger mon acte
+                </Button>
+              </div>
             </CardContent>
           </Card>
         )}

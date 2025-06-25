@@ -91,7 +91,7 @@ const DocumentDetails = ({ params }: { params: { id: string } }) => {
       setUpdating(true);
       
       // Essayer d'abord de mettre à jour un acte de naissance
-      let response = await fetch(`/api/agent/birth-certificates?id=${params.id}`, {
+      let response = await fetch(`/api/agent/birth-certificates/${params.id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -112,13 +112,14 @@ const DocumentDetails = ({ params }: { params: { id: string } }) => {
       }
       
       // Si ce n'est pas un acte de naissance, essayer une déclaration de naissance
+      const declarationStatus = newStatus === 'COMPLETED' ? 'approuvé' : newStatus === 'REJECTED' ? 'rejeté' : 'en_attente';
       response = await fetch(`/api/agent/birth-declarations/${params.id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          status: newStatus,
+          status: declarationStatus,
         }),
       });
 
@@ -262,6 +263,10 @@ const DocumentDetails = ({ params }: { params: { id: string } }) => {
     ));
   }, [request?.files]);
 
+  // Séparation des fichiers
+  const citizenFiles = request?.files?.filter(f => f.type !== 'ACTE_NAISSANCE_FINAL') || [];
+  const finalActeFile = request?.files?.find(f => f.type === 'ACTE_NAISSANCE_FINAL');
+
   if (loading) {
     return (
       <AgentLayout>
@@ -377,16 +382,45 @@ const DocumentDetails = ({ params }: { params: { id: string } }) => {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="mb-6">
           <CardHeader>
-            <CardTitle>Documents fournis</CardTitle>
+            <CardTitle>Documents fournis par le citoyen</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {documentFiles}
-            </div>
+            {citizenFiles.length === 0 ? (
+              <p>Aucun document fourni.</p>
+            ) : (
+              <div className="grid gap-4">
+                {citizenFiles.map((file) => (
+                  <div key={file.id} className="flex items-center gap-2">
+                    <FileText className="h-4 w-4" />
+                    <span>{file.type === 'DEMANDEUR_ID' ? 'Pièce d\'identité du demandeur' : file.type === 'EXISTING_ACTE' ? 'Acte existant' : file.type}</span>
+                    <Button variant="outline" size="sm" asChild>
+                      <a href={file.url} target="_blank" rel="noopener noreferrer">
+                        <Download className="h-4 w-4 mr-2" />
+                        Télécharger
+                      </a>
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
+
+        {finalActeFile && (
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle>Acte de naissance final</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-2">
+                <FileText className="h-4 w-4" />
+                <span>Acte de naissance final soumis</span>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {request.status === 'PENDING' && (
           <div className="flex gap-4">

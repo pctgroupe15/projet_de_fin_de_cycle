@@ -75,6 +75,12 @@ export async function POST(
       );
     }
 
+    // Mettre à jour le statut de la certificat de naissance
+    await db.collection('BirthCertificate').updateOne(
+      { _id: new ObjectId(params.id) },
+      { $set: { status: 'COMPLETED' } }
+    );
+
     return NextResponse.json({
       success: true,
       data: document
