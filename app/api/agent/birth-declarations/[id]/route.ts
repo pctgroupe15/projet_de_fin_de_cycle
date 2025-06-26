@@ -127,7 +127,13 @@ export async function PATCH(
     const body = await request.json();
     const { status } = body;
 
-    if (!status || !['en_attente', 'approuvé', 'rejeté'].includes(status)) {
+    // Mappe les statuts français vers les statuts anglais utilisés dans le frontend
+    let mappedStatus = status;
+    if (status === 'approuvé') mappedStatus = 'COMPLETED';
+    else if (status === 'en_attente') mappedStatus = 'PENDING';
+    else if (status === 'rejeté') mappedStatus = 'REJECTED';
+
+    if (!mappedStatus || !['PENDING', 'COMPLETED', 'REJECTED'].includes(mappedStatus)) {
       return NextResponse.json(
         { success: false, message: 'Statut invalide' },
         { status: 400 }
@@ -155,7 +161,7 @@ export async function PATCH(
 
     const updatedDeclaration = await db.collection('BirthDeclaration').findOneAndUpdate(
       { _id: new ObjectId(params.id) },
-      { $set: { status } },
+      { $set: { status: mappedStatus } },
       { returnDocument: 'after' }
     );
 

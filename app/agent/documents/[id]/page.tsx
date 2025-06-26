@@ -59,6 +59,7 @@ const DocumentDetails = ({ params }: { params: { id: string } }) => {
       let data = await response.json();
       
       if (data.success) {
+        console.log('STATUT REÇU:', data.data.status);
         setRequest(data.data);
         setComment(data.data.comment || '');
         return;
@@ -69,6 +70,7 @@ const DocumentDetails = ({ params }: { params: { id: string } }) => {
       data = await response.json();
       
       if (data.success) {
+        console.log('STATUT REÇU:', data.data.status);
         setRequest(data.data);
         setComment(data.data.comment || '');
       } else {
@@ -89,8 +91,6 @@ const DocumentDetails = ({ params }: { params: { id: string } }) => {
   const updateRequestStatus = useCallback(async (newStatus: string) => {
     try {
       setUpdating(true);
-      
-      // Essayer d'abord de mettre à jour un acte de naissance
       let response = await fetch(`/api/agent/birth-certificates/${params.id}`, {
         method: 'PATCH',
         headers: {
@@ -101,16 +101,15 @@ const DocumentDetails = ({ params }: { params: { id: string } }) => {
           comment: comment,
         }),
       });
-
       let data = await response.json();
-      
       if (data.success) {
         toast.success('Statut mis à jour avec succès');
         fetchRequestDetails();
         setIsModalOpen(false);
         return;
+      } else {
+        toast.error(data.message || 'Erreur lors de la mise à jour du statut (acte de naissance)');
       }
-      
       // Si ce n'est pas un acte de naissance, essayer une déclaration de naissance
       const declarationStatus = newStatus === 'COMPLETED' ? 'approuvé' : newStatus === 'REJECTED' ? 'rejeté' : 'en_attente';
       response = await fetch(`/api/agent/birth-declarations/${params.id}`, {
@@ -122,19 +121,17 @@ const DocumentDetails = ({ params }: { params: { id: string } }) => {
           status: declarationStatus,
         }),
       });
-
       data = await response.json();
-      
       if (data.success) {
         toast.success('Statut mis à jour avec succès');
         fetchRequestDetails();
         setIsModalOpen(false);
       } else {
-        toast.error(data.message || 'Erreur lors de la mise à jour du statut');
+        toast.error(data.message || 'Erreur lors de la mise à jour du statut (déclaration de naissance)');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating request status:', error);
-      toast.error('Erreur lors de la mise à jour du statut');
+      toast.error('Erreur lors de la mise à jour du statut: ' + (error?.message || error));
     } finally {
       setUpdating(false);
     }
@@ -186,24 +183,27 @@ const DocumentDetails = ({ params }: { params: { id: string } }) => {
           method: 'POST',
           body: formData,
         });
-
         let uploadData = await uploadResponse.json();
-
-        if (!uploadData.success) {
-          // Si ce n'est pas un acte de naissance, essayer une déclaration de naissance
-          // Note: Pour les déclarations de naissance, on peut simplement mettre à jour le statut
-          // car l'upload de document final n'est pas implémenté pour les déclarations
-          console.log('Upload pour acte de naissance échoué, tentative pour déclaration de naissance');
+        if (uploadData.success) {
+          await updateRequestStatus(newStatus);
+          return;
         }
-
-        await updateRequestStatus(newStatus);
-
+        // Si ce n'est pas un acte de naissance, essayer une déclaration de naissance
+        uploadResponse = await fetch(`/api/agent/birth-declarations/${params.id}/upload-final-document`, {
+          method: 'POST',
+          body: formData,
+        });
+        uploadData = await uploadResponse.json();
+        if (uploadData.success) {
+          await updateRequestStatus(newStatus);
+        } else {
+          toast.error(uploadData.message || 'Erreur lors du téléversement du document final.');
+        }
       } catch (error) {
         console.error('Error uploading final document:', error);
         toast.error('Erreur lors du téléversement du document final.');
         setUpdating(false);
       }
-
     } else {
       await updateRequestStatus(newStatus);
     }
@@ -241,19 +241,21 @@ const DocumentDetails = ({ params }: { params: { id: string } }) => {
                  file.type}
               </p>
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" asChild>
-                  <a href={file.url} target="_blank" rel="noopener noreferrer">
-                    <Download className="h-4 w-4 mr-2" />
-                    Télécharger
-                  </a>
-                </Button>
                 {(file.type === 'DEMANDEUR_ID' || file.type === 'EXISTING_ACTE') && (
-                  <Button variant="outline" size="sm" asChild>
-                    <a href={file.url} target="_blank" rel="noopener noreferrer">
-                      <FileText className="h-4 w-4 mr-2" />
-                      Voir le document
-                    </a>
-                  </Button>
+                  <>
+                    <Button variant="outline" size="sm" asChild>
+                      <a href={file.url} target="_blank" rel="noopener noreferrer">
+                        <Download className="h-4 w-4 mr-2" />
+                        Télécharger
+                      </a>
+                    </Button>
+                    <Button variant="outline" size="sm" asChild>
+                      <a href={file.url} target="_blank" rel="noopener noreferrer">
+                        <FileText className="h-4 w-4 mr-2" />
+                        Voir le document
+                      </a>
+                    </Button>
+                  </>
                 )}
               </div>
             </div>

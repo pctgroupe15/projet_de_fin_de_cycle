@@ -62,22 +62,6 @@ const RequestDetailsPage = () => {
     }
   };
 
-  const handleApprove = async () => {
-    try {
-      const response = await fetch(`/api/agent/requests/${params.id}/approve`, {
-        method: 'POST',
-      });
-      const data = await response.json();
-      if (data.success) {
-        toast.success("Demande approuvée avec succès");
-        fetchRequestDetails();
-      }
-    } catch (error) {
-      console.error('Error approving request:', error);
-      toast.error("Erreur lors de l'approbation");
-    }
-  };
-
   const handleReject = async () => {
     try {
       const response = await fetch(`/api/agent/requests/${params.id}/reject`, {
@@ -255,14 +239,6 @@ const RequestDetailsPage = () => {
         </Card>
 
         <div className="flex gap-4">
-          <Button
-            onClick={handleApprove}
-            className="flex items-center gap-2"
-            disabled={request.status !== 'PENDING'}
-          >
-            <CheckCircle className="h-4 w-4" />
-            Approuver
-          </Button>
           <Button
             onClick={handleReject}
             variant="destructive"

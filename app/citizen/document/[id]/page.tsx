@@ -311,9 +311,12 @@ const DocumentDetailsPage = ({ params }: { params: { id: string } }) => {
                 <Button
                   onClick={() => {
                     const finalDocument = document.files.find(f => f.type === 'ACTE_NAISSANCE_FINAL');
+                    console.log('Document final trouvé:', finalDocument);
                     if (finalDocument) {
+                      console.log('URL du document final:', finalDocument.url);
                       window.open(finalDocument.url, '_blank');
                     } else {
+                      console.log('Aucun document final trouvé dans les fichiers:', document.files);
                       toast.error("Le document final n'est pas encore disponible.");
                     }
                   }}

@@ -57,7 +57,12 @@ export default function BirthDeclarationsPage() {
       const data = await response.json();
       
       if (data.success) {
-        setDeclarations(data.data);
+        setDeclarations(
+          data.data.map((decl: any) => ({
+            ...decl,
+            id: decl.id || decl._id || '', // Priorité à id, sinon _id
+          }))
+        );
       } else {
         toast.error('Erreur lors de la récupération des déclarations');
       }

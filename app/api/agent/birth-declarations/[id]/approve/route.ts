@@ -56,22 +56,19 @@ export async function POST(
     ]).toArray();
     const decl = declaration[0];
 
+    // Toutes les vérifications AVANT toute modification !
     if (!decl) {
       return NextResponse.json(
         { success: false, message: 'Déclaration non trouvée' },
         { status: 404 }
       );
     }
-
-    // Vérifier si la déclaration est en attente
     if (decl.status !== 'PENDING') {
       return NextResponse.json(
         { success: false, message: 'Cette déclaration a déjà été traitée' },
         { status: 400 }
       );
     }
-
-    // Vérifier le paiement
     if (!decl.payment || decl.payment.status !== 'PAID') {
       return NextResponse.json(
         { success: false, message: 'Le paiement n\'a pas été effectué' },
@@ -79,41 +76,7 @@ export async function POST(
       );
     }
 
-    // Générer un numéro d'acte unique
-    const acteNumber = `ACTE-${nanoid(8)}`;
-    const trackingNumber = nanoid(10);
-
-    // Créer les fichiers associés à l'acte
-    const files = (decl.documents || []).map((doc: any) => ({
-      type: doc.type,
-      url: doc.url
-    }));
-
-    // Créer l'acte de naissance
-    const birthCertificateInsert = await db.collection('BirthCertificate').insertOne({
-      citizenId: decl.citizenId,
-      fullName: `${decl.childFirstName} ${decl.childLastName}`,
-      birthDate: decl.birthDate,
-      birthPlace: decl.birthPlace,
-      fatherFullName: `${decl.fatherFirstName} ${decl.fatherLastName}`,
-      motherFullName: `${decl.motherFirstName} ${decl.motherLastName}`,
-      acteNumber,
-      status: 'COMPLETED',
-      trackingNumber,
-      agentId: session.user.id,
-      files,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
-    const birthCertificate = await db.collection('BirthCertificate').findOne({ _id: birthCertificateInsert.insertedId });
-
-    if (!birthCertificate) {
-      return NextResponse.json(
-        { success: false, message: 'Erreur lors de la création de l\'acte de naissance' },
-        { status: 500 }
-      );
-    }
-
+    // Ici seulement, on modifie la base !
     // Mettre à jour le statut de la déclaration
     const updatedDeclaration = await db.collection('BirthDeclaration').findOneAndUpdate(
       { _id: new ObjectId(params.id) },
@@ -121,7 +84,8 @@ export async function POST(
       { returnDocument: 'after' }
     );
 
-    if (!updatedDeclaration || !updatedDeclaration.value) {
+    console.log('updatedDeclaration:', updatedDeclaration);
+    if (!updatedDeclaration || Object.keys(updatedDeclaration).length === 0) {
       return NextResponse.json(
         { success: false, message: 'Erreur lors de la mise à jour de la déclaration' },
         { status: 500 }
@@ -130,29 +94,18 @@ export async function POST(
 
     // Créer une notification pour le citoyen
     await db.collection('Notification').insertOne({
-      citizenId: decl.citizenId,
+      citizenId: decl.citizen?._id || decl.citizenId,
       title: "Votre déclaration de naissance a été approuvée",
-      message: `Votre déclaration de naissance pour ${decl.childFirstName} ${decl.childLastName} a été approuvée. Votre acte de naissance (${acteNumber}) est maintenant disponible.`,
+      message: `Votre déclaration de naissance pour ${decl.childFirstName} ${decl.childLastName} a été approuvée. Vous pouvez maintenant récupérer l'acte de naissance auprès de la mairie ou attendre qu'il soit téléversé par l'agent.`,
       type: "BIRTH_DECLARATION",
       referenceId: decl._id,
-      createdAt: new Date(),
-    });
-
-    // Créer une notification pour l'acte de naissance
-    await db.collection('Notification').insertOne({
-      citizenId: decl.citizenId,
-      title: "Votre acte de naissance est disponible",
-      message: `Votre acte de naissance (${acteNumber}) pour ${decl.childFirstName} ${decl.childLastName} est maintenant disponible.`,
-      type: "BIRTH_CERTIFICATE",
-      referenceId: birthCertificate._id,
       createdAt: new Date(),
     });
 
     return NextResponse.json({
       success: true,
       data: {
-        declaration: updatedDeclaration.value,
-        birthCertificate
+        declaration: updatedDeclaration.value || updatedDeclaration,
       }
     });
   } catch (error) {
