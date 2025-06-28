@@ -262,11 +262,17 @@ export const authOptions: NextAuthOptions = {
 
           // Fonction pour obtenir le nom correctement
           const getUserName = (user: any): string => {
+            // Pour les citoyens (nom et prenom)
+            if ('nom' in user && 'prenom' in user && user.nom && user.prenom) {
+              return `${user.nom} ${user.prenom}`;
+            }
+            // Pour les agents (firstName et lastName)
+            if ('firstName' in user && 'lastName' in user && user.firstName && user.lastName) {
+              return `${user.firstName} ${user.lastName}`;
+            }
+            // Fallback pour name
             if ('name' in user && user.name) {
               return user.name;
-            }
-            if ('firstName' in user && 'lastName' in user) {
-              return `${user.firstName} ${user.lastName}`;
             }
             return "Utilisateur";
           };

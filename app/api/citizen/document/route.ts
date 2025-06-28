@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { connectToDatabase } from '@/lib/mongodb';
+import { getDb } from '@/lib/mongodb';
 import { authOptions } from '@/lib/auth';
 
 export async function POST(request: Request) {
@@ -13,8 +13,8 @@ export async function POST(request: Request) {
       );
     }
 
-    const { db } = await connectToDatabase();
-    const citizen = await db.collection('citizens').findOne({ email: session.user.email });
+    const db = await getDb();
+    const citizen = await db.collection('Citizen').findOne({ email: session.user.email });
 
     if (!citizen) {
       return NextResponse.json(
@@ -64,7 +64,7 @@ export async function GET(request: Request) {
       );
     }
 
-    const { db } = await connectToDatabase();
+    const db = await getDb();
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
 

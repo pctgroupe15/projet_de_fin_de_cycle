@@ -31,7 +31,7 @@ export async function POST(request: Request) {
     const db = client.db("mairie_db");
     console.log('Base de données sélectionnée');
     
-    const collection = db.collection("citizens");
+    const collection = db.collection("Citizen");
     console.log('Collection sélectionnée');
 
     const body = await request.json();
@@ -139,7 +139,7 @@ export async function GET() {
   try {
     const client = await clientPromise;
     const db = client.db("mairie_db");
-    const collection = db.collection("citizens");
+    const collection = db.collection("Citizen");
 
     const citizens = await collection.find({}, { projection: { hashedPassword: 0 } }).toArray();
 

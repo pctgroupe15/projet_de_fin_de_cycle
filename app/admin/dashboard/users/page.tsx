@@ -248,7 +248,11 @@ export default function UsersPage() {
   };
 
   const formatDate = (date: string) => {
-    return format(new Date(date), "dd MMMM yyyy", { locale: fr });
+    const d = new Date(date);
+    if (!date || isNaN(d.getTime())) {
+      return "Date invalide";
+    }
+    return format(d, "dd MMMM yyyy", { locale: fr });
   };
 
   const filteredUsers = users.filter((user) => {

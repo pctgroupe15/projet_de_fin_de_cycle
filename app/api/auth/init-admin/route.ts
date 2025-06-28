@@ -10,7 +10,7 @@ export async function POST(request: Request) {
   try {
     const client = await clientPromise;
     const db = client.db("mairie_db");
-    const collection = db.collection("users");
+    const collection = db.collection("User");
 
     // Vérifier si l'admin existe déjà
     const existingAdmin = await collection.findOne({ email: ADMIN_EMAIL });

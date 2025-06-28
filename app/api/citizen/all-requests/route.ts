@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { connectToDatabase } from '@/lib/mongodb';
+import { getDb } from '@/lib/mongodb';
 
 export async function GET() {
   try {
@@ -12,8 +12,8 @@ export async function GET() {
       );
     }
 
-    const { db } = await connectToDatabase();
-    const citizen = await db.collection('citizens').findOne({ email: session.user.email });
+    const db = await getDb();
+    const citizen = await db.collection('Citizen').findOne({ email: session.user.email });
 
     if (!citizen) {
       return NextResponse.json(

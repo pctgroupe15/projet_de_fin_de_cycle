@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { connectToDatabase } from '@/lib/mongodb';
+import { getDb } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
 import { authOptions } from '@/lib/auth';
 
@@ -18,7 +18,7 @@ export async function GET(request: Request) {
       );
     }
 
-    const { db } = await connectToDatabase();
+    const db = await getDb();
 
     // Vérifier si l'utilisateur est un agent
     const agent = await db.collection('Agent').findOne({ email: session.user.email });
@@ -50,7 +50,7 @@ export async function GET(request: Request) {
       }
 
       // Récupérer les informations du citoyen
-      const citizen = await db.collection('citizens').findOne({ email: document.citizenEmail });
+      const citizen = await db.collection('Citizen').findOne({ email: document.citizenEmail });
 
       const documentWithCitizen = {
         id: document._id.toString(),
@@ -95,7 +95,7 @@ export async function PUT(request: Request) {
       );
     }
 
-    const { db } = await connectToDatabase();
+    const db = await getDb();
     const agent = await db.collection('agents').findOne({ email: session.user.email });
 
     if (!agent) {
