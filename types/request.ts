@@ -31,3 +31,22 @@ export interface RequestData {
     createdAt: Date;
   }[];
 }
+
+// Type spécifique pour les demandes d'acte de naissance
+export interface BirthCertificateRequest {
+  _id?: ObjectId;
+  citizenId: ObjectId;
+  fullName: string;
+  birthDate: Date;
+  birthPlace: string;
+  fatherFullName?: string;
+  motherFullName?: string;
+  acteNumber?: string; // Numéro d'acte fourni par le citoyen
+  status: RequestStatus;
+  trackingNumber: string;
+  comment?: string;
+  communeId: ObjectId;
+  agentId?: ObjectId;
+  createdAt: Date;
+  updatedAt: Date;
+}

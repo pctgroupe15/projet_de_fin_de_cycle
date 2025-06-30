@@ -23,7 +23,11 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import { Upload, X, FileText } from "lucide-react";
+import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
+// Schéma de validation avec Zod - validation personnalisée pour exiger au moins un des deux champs
 const formSchema = z.object({
   fullName: z.string().min(2, "Le nom complet est requis"),
   birthDate: z.string().min(1, "La date de naissance est requise"),
@@ -32,6 +36,14 @@ const formSchema = z.object({
   motherName: z.string().min(2, "Le nom de la mère est requis"),
   reason: z.string().min(10, "La raison de la demande est requise"),
   communeId: z.string().min(1, "La commune est requise"),
+  acteNumber: z.string().optional(),
+  existingActeFile: z.any().optional(),
+}).refine((data) => {
+  // Au moins un des deux champs doit être rempli
+  return data.acteNumber || data.existingActeFile;
+}, {
+  message: "Vous devez fournir soit le numéro d'acte, soit un ancien acte de naissance",
+  path: ["acteNumber", "existingActeFile"]
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -45,6 +57,7 @@ export default function ActeNaissanceForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [isCommunesLoading, setIsCommunesLoading] = useState(true);
   const [communes, setCommunes] = useState<Commune[]>([]);
+  const [existingActeFile, setExistingActeFile] = useState<File | null>(null);
   const router = useRouter();
 
   const form = useForm<FormValues>({
@@ -57,6 +70,7 @@ export default function ActeNaissanceForm() {
       motherName: "",
       reason: "",
       communeId: "",
+      acteNumber: "",
     },
   });
 
@@ -83,15 +97,45 @@ export default function ActeNaissanceForm() {
     fetchCommunes();
   }, []);
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Vérifier le type de fichier
+    if (!file.type.includes('pdf') && !file.type.includes('image')) {
+      toast.error('Le fichier doit être au format PDF ou image');
+      return;
+    }
+
+    // Vérifier la taille du fichier (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Le fichier ne doit pas dépasser 5MB');
+      return;
+    }
+
+    setExistingActeFile(file);
+    form.setValue('existingActeFile', file);
+  };
+
+  const removeFile = () => {
+    setExistingActeFile(null);
+    form.setValue('existingActeFile', null);
+  };
+
   const onSubmit = async (data: FormValues) => {
     try {
       setIsLoading(true);
+
+      // Créer d'abord la demande d'acte de naissance
       const response = await fetch("/api/citizen/birth-certificate", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify({
+          ...data,
+          acteNumber: data.acteNumber || null,
+        }),
       });
 
       const result = await response.json();
@@ -101,8 +145,25 @@ export default function ActeNaissanceForm() {
         throw new Error(errorMessage);
       }
 
+      // Si un ancien acte a été sélectionné, l'uploader
+      if (existingActeFile) {
+        const formData = new FormData();
+        formData.append('file', existingActeFile);
+        formData.append('requestId', result.data.id);
+
+        const uploadResponse = await fetch('/api/citizen/document/upload-existing-acte', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (!uploadResponse.ok) {
+          throw new Error("Erreur lors de l'upload de l'ancien acte");
+        }
+      }
+
       toast.success("Demande d'acte de naissance soumise avec succès");
       form.reset();
+      setExistingActeFile(null);
       
       // Rediriger vers la page de détails existante
       router.push(`/citizen/document/${result.data.id}`);
@@ -247,6 +308,73 @@ export default function ActeNaissanceForm() {
             </FormItem>
           )}
         />
+
+        {/* Section pour les informations d'acte */}
+        <div className="space-y-4">
+          <Alert>
+            <AlertDescription>
+              Pour faciliter le traitement de votre demande, veuillez fournir <strong>au moins une</strong> des informations suivantes :
+            </AlertDescription>
+          </Alert>
+
+          <FormField
+            control={form.control}
+            name="acteNumber"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Numéro d'acte de naissance (si connu)</FormLabel>
+                <FormControl>
+                  <Input 
+                    placeholder="Ex: 2024-001234" 
+                    {...field} 
+                    value={field.value || ''}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <div className="space-y-2">
+            <Label>Ancien acte de naissance (si vous en avez un)</Label>
+            <div className="flex items-center space-x-4">
+              <Input
+                type="file"
+                accept=".pdf,image/*"
+                onChange={handleFileChange}
+                disabled={isLoading}
+                className="hidden"
+                id="existing-acte"
+              />
+              <Label
+                htmlFor="existing-acte"
+                className="flex items-center justify-center px-4 py-2 border border-dashed rounded-md cursor-pointer hover:bg-muted/50"
+              >
+                <Upload className="w-4 h-4 mr-2" />
+                {existingActeFile ? 'Fichier sélectionné' : 'Sélectionner un ancien acte'}
+              </Label>
+              {existingActeFile && (
+                <div className="flex items-center space-x-2">
+                  <span className="text-sm text-muted-foreground">
+                    {existingActeFile.name}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={removeFile}
+                    disabled={isLoading}
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+              )}
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Formats acceptés : PDF, JPEG, PNG (max 5MB)
+            </p>
+          </div>
+        </div>
 
         <Button type="submit" className="w-full" disabled={isLoading}>
           {isLoading ? "Soumission en cours..." : "Soumettre la demande"}

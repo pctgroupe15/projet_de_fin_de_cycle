@@ -81,6 +81,22 @@ export async function POST(
       { $set: { status: 'COMPLETED' } }
     );
 
+    // Récupérer les informations du certificat pour la notification
+    const birthCertificate = await db.collection('BirthCertificate').findOne({ _id: new ObjectId(params.id) });
+
+    // Créer une notification pour le citoyen
+    if (birthCertificate) {
+      await db.collection('Notification').insertOne({
+        citizenId: birthCertificate.citizenId,
+        title: "Votre acte de naissance est prêt",
+        message: `Votre demande d'acte de naissance (${birthCertificate.trackingNumber}) a été traitée et le document final est maintenant disponible. Vous pouvez le télécharger depuis votre espace personnel.`,
+        type: "BIRTH_CERTIFICATE",
+        referenceId: new ObjectId(params.id),
+        status: "UNREAD",
+        createdAt: new Date(),
+      });
+    }
+
     return NextResponse.json({
       success: true,
       data: document

@@ -108,6 +108,35 @@ export async function POST(request: Request) {
         throw new Error('Type de demande inconnu');
       }
       console.log('Paiement inséré');
+
+      // Créer une notification pour le citoyen
+      const notificationMessage = requestType === 'birth_certificate'
+        ? `Votre paiement pour la demande d'acte de naissance a été effectué avec succès. Votre demande est maintenant en cours de traitement.`
+        : `Votre paiement pour la déclaration de naissance a été effectué avec succès. Votre demande est maintenant en cours de traitement.`;
+
+      await db.collection('Notification').insertOne({
+        citizenId: demande.citizenId,
+        title: "Paiement effectué avec succès",
+        message: notificationMessage,
+        type: requestType === 'birth_certificate' ? "BIRTH_CERTIFICATE" : "BIRTH_DECLARATION",
+        referenceId: new ObjectId(requestId),
+        status: "UNREAD",
+        createdAt: new Date(),
+      });
+
+      // Créer une notification pour l'agent si c'est un acte de naissance
+      if (requestType === 'birth_certificate' && demande.agentId) {
+        await db.collection('AgentNotification').insertOne({
+          agentId: demande.agentId,
+          title: "Nouveau paiement reçu",
+          message: `Un citoyen a effectué le paiement pour une demande d'acte de naissance (${demande.trackingNumber}). La demande est prête à être traitée.`,
+          type: "PAYMENT_RECEIVED",
+          referenceId: new ObjectId(requestId),
+          status: "UNREAD",
+          createdAt: new Date(),
+        });
+      }
+
     } catch (error: any) {
       if (error.code === 11000) {
         console.log('Paiement déjà existant, on retourne un succès');

@@ -1,13 +1,13 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { CitizenLayout } from '@/components/layouts/citizen-layout';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { ArrowLeft, Download, FileText, AlertCircle, CheckCircle, CreditCard } from "lucide-react";
+import { ArrowLeft, Download, FileText, AlertCircle, CheckCircle, CreditCard, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 
 interface Document {
@@ -46,10 +46,23 @@ const DocumentDetailsPage = ({ params }: { params: { id: string } }) => {
   const [document, setDocument] = useState<DocumentDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   useEffect(() => {
     fetchDocumentDetails();
-  }, [params.id]);
+    
+    // Si on vient de la page de succès de paiement, rafraîchir immédiatement
+    if (searchParams.get('refresh') === 'true') {
+      setTimeout(() => {
+        fetchDocumentDetails();
+      }, 1000);
+    }
+    
+    // Rafraîchir les données toutes les 10 secondes pour les mises à jour de paiement
+    const interval = setInterval(fetchDocumentDetails, 10000);
+    
+    return () => clearInterval(interval);
+  }, [params.id, searchParams]);
 
   const fetchDocumentDetails = async () => {
     try {
@@ -148,6 +161,19 @@ const DocumentDetailsPage = ({ params }: { params: { id: string } }) => {
           Retour à la liste
         </Button>
 
+        <div className="flex justify-between items-center mb-4">
+          <h1 className="text-2xl font-bold">Détails de la demande</h1>
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={fetchDocumentDetails}
+            disabled={loading}
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+            Actualiser
+          </Button>
+        </div>
+
         <Card>
           <CardHeader>
             <CardTitle>Détails de la demande</CardTitle>
@@ -182,7 +208,7 @@ const DocumentDetailsPage = ({ params }: { params: { id: string } }) => {
               </div>
 
               <div className="mt-4 border-t pt-4">
-                {document.status === 'PENDING' && !document.payment ? (
+                {document.status === 'PENDING' && (!document.payment || document.payment.status !== 'PAID') ? (
                   <div className="space-y-4">
                     <p className="text-sm text-muted-foreground">
                       Pour finaliser votre demande, veuillez procéder au paiement des frais.
@@ -192,12 +218,26 @@ const DocumentDetailsPage = ({ params }: { params: { id: string } }) => {
                       Procéder au paiement (5000 FCFA)
                     </Button>
                   </div>
-                ) : document.payment ? (
+                ) : document.payment && document.payment.status === 'PAID' ? (
                   <Alert>
                     <AlertTitle>Statut du paiement</AlertTitle>
                     <AlertDescription>
                       <p>Montant payé : {document.payment.amount} FCFA</p>
-                      <p>Statut : {document.payment.status === 'PAID' ? 'Payé' : 'En attente'}</p>
+                      <p>Statut : Payé</p>
+                      <p className="text-sm text-muted-foreground mt-2">
+                        Votre paiement a été confirmé. Votre demande est maintenant en cours de traitement.
+                      </p>
+                    </AlertDescription>
+                  </Alert>
+                ) : document.payment && document.payment.status !== 'PAID' ? (
+                  <Alert variant="destructive">
+                    <AlertTitle>Problème avec le paiement</AlertTitle>
+                    <AlertDescription>
+                      <p>Montant : {document.payment.amount} FCFA</p>
+                      <p>Statut : {document.payment.status}</p>
+                      <p className="text-sm mt-2">
+                        Il y a eu un problème avec votre paiement. Veuillez réessayer.
+                      </p>
                     </AlertDescription>
                   </Alert>
                 ) : null}

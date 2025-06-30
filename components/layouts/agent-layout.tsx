@@ -1,24 +1,52 @@
 "use client";
 
-import { ReactNode } from "react";
+import { ReactNode, useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { UserNav } from "@/components/user-nav";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { 
   FileText, 
   Home, 
   Settings, 
   Users,
-  ClipboardList
+  ClipboardList,
+  Bell
 } from "lucide-react";
 
 interface AgentLayoutProps {
   children: ReactNode;
 }
 
+interface Notification {
+  id: string;
+  status: string;
+}
+
 export function AgentLayout({ children }: AgentLayoutProps) {
   const pathname = usePathname();
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    fetchUnreadCount();
+    // Mettre à jour le compteur toutes les 30 secondes
+    const interval = setInterval(fetchUnreadCount, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const fetchUnreadCount = async () => {
+    try {
+      const response = await fetch('/api/agent/notifications');
+      if (!response.ok) return;
+      
+      const notifications: Notification[] = await response.json();
+      const unread = notifications.filter(n => n.status === "UNREAD").length;
+      setUnreadCount(unread);
+    } catch (error) {
+      console.error('Erreur lors de la récupération des notifications:', error);
+    }
+  };
 
   const navigation = [
     {
@@ -40,6 +68,11 @@ export function AgentLayout({ children }: AgentLayoutProps) {
       name: "Documents",
       href: "/agent/document-types",
       icon: FileText
+    },
+    {
+      name: "Notifications",
+      href: "/agent/notifications",
+      icon: Bell
     },
     {
       name: "Paramètres",
@@ -75,6 +108,19 @@ export function AgentLayout({ children }: AgentLayoutProps) {
             </nav>
           </div>
           <div className="ml-auto flex items-center space-x-4">
+            <Link href="/agent/notifications">
+              <Button variant="outline" size="icon" className="relative rounded-full">
+                <Bell className="h-4 w-4" />
+                {unreadCount > 0 && (
+                  <Badge
+                    variant="destructive"
+                    className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-primary text-[10px] font-medium text-primary-foreground flex items-center justify-center p-0"
+                  >
+                    {unreadCount}
+                  </Badge>
+                )}
+              </Button>
+            </Link>
             <UserNav />
           </div>
         </div>

@@ -44,6 +44,18 @@ export async function POST(request: Request, { params }: { params: { id: string 
       updatedAt: new Date(),
     };
     await db.collection('Document').insertOne(doc);
+
+    // Créer une notification pour le citoyen
+    await db.collection('Notification').insertOne({
+      citizenId: declaration.citizenId,
+      title: "Votre acte de naissance est prêt",
+      message: `L'acte de naissance pour ${declaration.childFirstName} ${declaration.childLastName} a été téléversé et est maintenant disponible. Vous pouvez le télécharger depuis votre espace personnel.`,
+      type: "BIRTH_DECLARATION",
+      referenceId: new ObjectId(params.id),
+      status: "UNREAD",
+      createdAt: new Date(),
+    });
+
     return NextResponse.json({ success: true, url: uploadResult.secure_url });
   } catch (error) {
     console.error('[UPLOAD_FINAL_DOCUMENT_DECLARATION]', error);

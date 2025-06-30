@@ -50,6 +50,17 @@ export async function GET(
           as: 'files'
         }
       },
+      { $lookup: {
+          from: 'Payment',
+          localField: '_id',
+          foreignField: 'birthCertificateId',
+          as: 'paymentArr'
+        }
+      },
+      { $addFields: {
+          payment: { $arrayElemAt: ['$paymentArr', 0] }
+        }
+      },
       { $project: { citizenArr: 0 } }
     ]).toArray();
     const birthCertificate = birthCertificateArr[0];
@@ -126,6 +137,25 @@ export async function PATCH(request: Request, { params }: { params: { id: string
       console.log('PATCH birth-certificate - Erreur lors de la mise à jour');
       return NextResponse.json({ success: false, message: "Erreur lors de la mise à jour" }, { status: 500 });
     }
+
+    // Créer une notification pour le citoyen
+    const statusLabel = status === 'COMPLETED' ? 'approuvée' : status === 'REJECTED' ? 'rejetée' : 'mise à jour';
+    const notificationMessage = status === 'COMPLETED' 
+      ? `Votre demande d'acte de naissance (${existingCertificate.trackingNumber}) a été approuvée. Votre document est prêt.`
+      : status === 'REJECTED'
+      ? `Votre demande d'acte de naissance (${existingCertificate.trackingNumber}) a été rejetée. ${comment ? `Raison : ${comment}` : ''}`
+      : `Votre demande d'acte de naissance (${existingCertificate.trackingNumber}) a été mise à jour.`;
+
+    await db.collection('Notification').insertOne({
+      citizenId: existingCertificate.citizenId,
+      title: `Mise à jour de votre demande d'acte de naissance`,
+      message: notificationMessage,
+      type: "BIRTH_CERTIFICATE",
+      referenceId: new ObjectId(params.id),
+      status: "UNREAD",
+      createdAt: new Date(),
+    });
+
     console.log('PATCH birth-certificate - Succès');
     return NextResponse.json({ success: true, data: birthCertificate });
   } catch (error) {

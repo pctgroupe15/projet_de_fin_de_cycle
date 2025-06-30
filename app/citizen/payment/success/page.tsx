@@ -54,7 +54,7 @@ export default function PaymentSuccessPage() {
           
           // Rediriger vers la page de détails de la demande après 3 secondes
           setTimeout(() => {
-            router.push(`/citizen/document/${data.requestId}`);
+            router.push(`/citizen/document/${data.requestId}?refresh=true`);
           }, 3000);
         } else {
           throw new Error(data.message || "Erreur lors de la vérification du paiement");

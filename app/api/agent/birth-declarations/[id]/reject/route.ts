@@ -28,8 +28,18 @@ export async function POST(request: Request, { params }: { params: { id: string 
     if (!updatedDeclaration || !updatedDeclaration.value) {
       return NextResponse.json({ success: false, message: 'Erreur lors du rejet de la déclaration' }, { status: 500 });
     }
-    // (Optionnel) Créer une notification pour le citoyen
-    // await db.collection('Notification').insertOne({ ... });
+
+    // Créer une notification pour le citoyen
+    await db.collection('Notification').insertOne({
+      citizenId: declaration.citizenId,
+      title: "Votre déclaration de naissance a été rejetée",
+      message: `Votre déclaration de naissance pour ${declaration.childFirstName} ${declaration.childLastName} a été rejetée. Veuillez vérifier les informations fournies et soumettre une nouvelle déclaration si nécessaire.`,
+      type: "BIRTH_DECLARATION",
+      referenceId: new ObjectId(params.id),
+      status: "UNREAD",
+      createdAt: new Date(),
+    });
+
     return NextResponse.json({ success: true, data: updatedDeclaration.value });
   } catch (error) {
     console.error('Erreur lors du rejet de la déclaration:', error);

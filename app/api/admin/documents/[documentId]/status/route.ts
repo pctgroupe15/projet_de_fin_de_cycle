@@ -51,6 +51,25 @@ export async function PATCH(
           { status: 500 }
         );
       }
+
+      // Créer une notification pour le citoyen
+      const statusLabel = status === 'COMPLETED' ? 'approuvée' : status === 'REJECTED' ? 'rejetée' : 'mise à jour';
+      const notificationMessage = status === 'COMPLETED' 
+        ? `Votre déclaration de naissance pour ${birthDeclaration.childFirstName} ${birthDeclaration.childLastName} a été approuvée.`
+        : status === 'REJECTED'
+        ? `Votre déclaration de naissance pour ${birthDeclaration.childFirstName} ${birthDeclaration.childLastName} a été rejetée. ${rejectReason ? `Raison : ${rejectReason}` : ''}`
+        : `Votre déclaration de naissance pour ${birthDeclaration.childFirstName} ${birthDeclaration.childLastName} a été mise à jour.`;
+
+      await db.collection('Notification').insertOne({
+        citizenId: birthDeclaration.citizenId,
+        title: "Mise à jour de votre déclaration de naissance",
+        message: notificationMessage,
+        type: "BIRTH_DECLARATION",
+        referenceId: new ObjectId(documentId),
+        status: "UNREAD",
+        createdAt: new Date(),
+      });
+
       const citizen = await db.collection('Citizen').findOne({ _id: birthDeclaration.citizenId });
       return NextResponse.json({
         id: updatedDeclaration.value._id,
@@ -79,6 +98,25 @@ export async function PATCH(
           { status: 500 }
         );
       }
+
+      // Créer une notification pour le citoyen
+      const statusLabel = status === 'COMPLETED' ? 'approuvée' : status === 'REJECTED' ? 'rejetée' : 'mise à jour';
+      const notificationMessage = status === 'COMPLETED' 
+        ? `Votre demande d'acte de naissance (${birthCertificate.trackingNumber}) a été approuvée. Votre document est prêt.`
+        : status === 'REJECTED'
+        ? `Votre demande d'acte de naissance (${birthCertificate.trackingNumber}) a été rejetée. ${rejectReason ? `Raison : ${rejectReason}` : ''}`
+        : `Votre demande d'acte de naissance (${birthCertificate.trackingNumber}) a été mise à jour.`;
+
+      await db.collection('Notification').insertOne({
+        citizenId: birthCertificate.citizenId,
+        title: "Mise à jour de votre demande d'acte de naissance",
+        message: notificationMessage,
+        type: "BIRTH_CERTIFICATE",
+        referenceId: new ObjectId(documentId),
+        status: "UNREAD",
+        createdAt: new Date(),
+      });
+
       const citizen = await db.collection('Citizen').findOne({ _id: birthCertificate.citizenId });
       return NextResponse.json({
         id: updatedCertificate.value._id,

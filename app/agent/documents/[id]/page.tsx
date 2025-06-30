@@ -3,13 +3,13 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { AgentLayout } from '@/components/layouts/agent-layout';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { ArrowLeft, CheckCircle, XCircle, Download, FileText, AlertCircle } from "lucide-react";
+import { ArrowLeft, CheckCircle, XCircle, Download, FileText, AlertCircle, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 
 interface Document {
@@ -18,6 +18,13 @@ interface Document {
   url: string;
   createdAt: Date;
   updatedAt: Date;
+}
+
+interface Payment {
+  id: string;
+  status: string;
+  amount: number;
+  createdAt: Date;
 }
 
 interface BirthCertificateRequest {
@@ -41,6 +48,7 @@ interface BirthCertificateRequest {
     email: string;
   };
   files: Document[];
+  payment?: Payment;
 }
 
 const DocumentDetails = ({ params }: { params: { id: string } }) => {
@@ -50,6 +58,7 @@ const DocumentDetails = ({ params }: { params: { id: string } }) => {
   const [comment, setComment] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [actionToPerform, setActionToPerform] = useState<'COMPLETED' | 'REJECTED' | null>(null);
   const router = useRouter();
 
   const fetchRequestDetails = useCallback(async () => {
@@ -86,6 +95,11 @@ const DocumentDetails = ({ params }: { params: { id: string } }) => {
 
   useEffect(() => {
     fetchRequestDetails();
+    
+    // Rafraîchir les données toutes les 10 secondes pour les mises à jour de paiement
+    const interval = setInterval(fetchRequestDetails, 10000);
+    
+    return () => clearInterval(interval);
   }, [fetchRequestDetails]);
 
   const updateRequestStatus = useCallback(async (newStatus: string) => {
@@ -164,10 +178,20 @@ const DocumentDetails = ({ params }: { params: { id: string } }) => {
   }, []);
 
   const handleOk = useCallback(async () => {
-    const newStatus = request?.status === 'PENDING' ? 'COMPLETED' : 'REJECTED';
+    if (!actionToPerform) {
+      toast.error('Action non définie');
+      return;
+    }
+
+    // Validation pour le rejet : commentaire obligatoire
+    if (actionToPerform === 'REJECTED' && !comment.trim()) {
+      toast.error('Veuillez fournir un commentaire pour expliquer le rejet');
+      return;
+    }
+
     setUpdating(true);
 
-    if (newStatus === 'COMPLETED') {
+    if (actionToPerform === 'COMPLETED') {
       if (!selectedFile) {
         toast.warning('Veuillez joindre le document final pour valider la demande.');
         setUpdating(false);
@@ -185,7 +209,7 @@ const DocumentDetails = ({ params }: { params: { id: string } }) => {
         });
         let uploadData = await uploadResponse.json();
         if (uploadData.success) {
-          await updateRequestStatus(newStatus);
+          await updateRequestStatus(actionToPerform);
           return;
         }
         // Si ce n'est pas un acte de naissance, essayer une déclaration de naissance
@@ -195,7 +219,7 @@ const DocumentDetails = ({ params }: { params: { id: string } }) => {
         });
         uploadData = await uploadResponse.json();
         if (uploadData.success) {
-          await updateRequestStatus(newStatus);
+          await updateRequestStatus(actionToPerform);
         } else {
           toast.error(uploadData.message || 'Erreur lors du téléversement du document final.');
         }
@@ -205,11 +229,12 @@ const DocumentDetails = ({ params }: { params: { id: string } }) => {
         setUpdating(false);
       }
     } else {
-      await updateRequestStatus(newStatus);
+      await updateRequestStatus(actionToPerform);
     }
-  }, [request?.status, selectedFile, params.id, updateRequestStatus]);
+  }, [actionToPerform, comment, selectedFile, params.id, updateRequestStatus]);
 
   const showModal = useCallback((statusToUpdate: 'COMPLETED' | 'REJECTED') => {
+    setActionToPerform(statusToUpdate);
     if (statusToUpdate === 'COMPLETED') {
       setSelectedFile(null);
     }
@@ -220,6 +245,7 @@ const DocumentDetails = ({ params }: { params: { id: string } }) => {
     setIsModalOpen(false);
     setComment('');
     setSelectedFile(null);
+    setActionToPerform(null);
   }, []);
 
   const handleBack = useCallback(() => {
@@ -302,6 +328,19 @@ const DocumentDetails = ({ params }: { params: { id: string } }) => {
           Retour à la liste
         </Button>
 
+        <div className="flex justify-between items-center mb-4">
+          <h1 className="text-2xl font-bold">Détails de la demande</h1>
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={fetchRequestDetails}
+            disabled={loading}
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+            Actualiser
+          </Button>
+        </div>
+
         <Card>
           <CardHeader>
             <CardTitle>Détails de la demande</CardTitle>
@@ -329,6 +368,52 @@ const DocumentDetails = ({ params }: { params: { id: string } }) => {
                 </div>
               </div>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Section pour le statut de paiement */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Statut du paiement</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {request.payment ? (
+              <div className="grid gap-4">
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Statut</p>
+                    <Badge variant={request.payment.status === 'PAID' ? 'success' : 'secondary'}>
+                      {request.payment.status === 'PAID' ? 'Payé' : 'En attente'}
+                    </Badge>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Montant</p>
+                    <p>{request.payment.amount} FCFA</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Date de paiement</p>
+                    <p>{new Date(request.payment.createdAt).toLocaleDateString()}</p>
+                  </div>
+                </div>
+                {request.payment.status === 'PAID' && (
+                  <Alert>
+                    <CheckCircle className="h-4 w-4" />
+                    <AlertTitle>Paiement confirmé</AlertTitle>
+                    <AlertDescription>
+                      Le citoyen a effectué le paiement. La demande peut maintenant être traitée.
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </div>
+            ) : (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Aucun paiement effectué</AlertTitle>
+                <AlertDescription>
+                  Le citoyen n'a pas encore effectué le paiement. La demande ne peut pas être traitée tant que le paiement n'est pas confirmé.
+                </AlertDescription>
+              </Alert>
+            )}
           </CardContent>
         </Card>
 
@@ -380,6 +465,12 @@ const DocumentDetails = ({ params }: { params: { id: string } }) => {
                   <p>{request.motherFullName || 'Non renseigné'}</p>
                 </div>
               </div>
+              {request.acteNumber && (
+                <div>
+                  <p className="text-sm text-muted-foreground">Numéro d'acte fourni</p>
+                  <p className="font-medium text-green-600">{request.acteNumber}</p>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -394,9 +485,22 @@ const DocumentDetails = ({ params }: { params: { id: string } }) => {
             ) : (
               <div className="grid gap-4">
                 {citizenFiles.map((file) => (
-                  <div key={file.id} className="flex items-center gap-2">
-                    <FileText className="h-4 w-4" />
-                    <span>{file.type === 'DEMANDEUR_ID' ? 'Pièce d\'identité du demandeur' : file.type === 'EXISTING_ACTE' ? 'Acte existant' : file.type}</span>
+                  <div key={file.id} className="flex items-center justify-between p-3 border rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <FileText className="h-5 w-5" />
+                      <div>
+                        <span className="font-medium">
+                          {file.type === 'DEMANDEUR_ID' ? 'Pièce d\'identité du demandeur' : 
+                           file.type === 'EXISTING_ACTE' ? 'Ancien acte de naissance' : 
+                           file.type}
+                        </span>
+                        {file.type === 'EXISTING_ACTE' && (
+                          <p className="text-sm text-muted-foreground">
+                            Fourni pour récupérer le numéro d'acte
+                          </p>
+                        )}
+                      </div>
+                    </div>
                     <Button variant="outline" size="sm" asChild>
                       <a href={file.url} target="_blank" rel="noopener noreferrer">
                         <Download className="h-4 w-4 mr-2" />
@@ -409,6 +513,40 @@ const DocumentDetails = ({ params }: { params: { id: string } }) => {
             )}
           </CardContent>
         </Card>
+
+        {/* Section pour les informations d'acte fournies */}
+        {(request.acteNumber || citizenFiles.some(f => f.type === 'EXISTING_ACTE')) && (
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle>Informations d'acte fournies par le citoyen</CardTitle>
+              <CardDescription>
+                Ces informations facilitent le traitement de la demande
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4">
+                {request.acteNumber && (
+                  <div className="flex items-center gap-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                    <div>
+                      <p className="font-medium text-green-800">Numéro d'acte fourni</p>
+                      <p className="text-green-700">{request.acteNumber}</p>
+                    </div>
+                  </div>
+                )}
+                {citizenFiles.some(f => f.type === 'EXISTING_ACTE') && (
+                  <div className="flex items-center gap-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                    <div>
+                      <p className="font-medium text-blue-800">Ancien acte de naissance fourni</p>
+                      <p className="text-blue-700">Le citoyen a fourni un ancien acte pour récupérer le numéro d'acte</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {finalActeFile && (
           <Card className="mb-6">
@@ -429,6 +567,8 @@ const DocumentDetails = ({ params }: { params: { id: string } }) => {
             <Button
               onClick={() => showModal('COMPLETED')}
               className="flex items-center gap-2"
+              disabled={!request.payment || request.payment.status !== 'PAID'}
+              title={!request.payment || request.payment.status !== 'PAID' ? 'Le paiement doit être effectué avant de pouvoir approuver' : ''}
             >
               <CheckCircle className="h-4 w-4" />
               Approuver
@@ -437,11 +577,24 @@ const DocumentDetails = ({ params }: { params: { id: string } }) => {
               onClick={() => showModal('REJECTED')}
               variant="destructive"
               className="flex items-center gap-2"
+              disabled={!request.payment || request.payment.status !== 'PAID'}
+              title={!request.payment || request.payment.status !== 'PAID' ? 'Le paiement doit être effectué avant de pouvoir rejeter' : ''}
             >
               <XCircle className="h-4 w-4" />
               Rejeter
             </Button>
           </div>
+        )}
+
+        {/* Message d'information si le paiement n'est pas effectué */}
+        {request.status === 'PENDING' && (!request.payment || request.payment.status !== 'PAID') && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Action impossible</AlertTitle>
+            <AlertDescription>
+              Les actions d'approbation et de rejet ne sont disponibles qu'après confirmation du paiement par le citoyen.
+            </AlertDescription>
+          </Alert>
         )}
 
         <Dialog 
@@ -452,23 +605,28 @@ const DocumentDetails = ({ params }: { params: { id: string } }) => {
           <DialogContent>
             <DialogHeader>
               <DialogTitle>
-                {request.status === 'PENDING' ? 'Approuver la demande' : 'Rejeter la demande'}
+                {actionToPerform === 'COMPLETED' ? 'Approuver la demande' : 'Rejeter la demande'}
               </DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
               <div>
                 <label htmlFor="comment" className="text-sm font-medium">
-                  Commentaire
+                  Commentaire {actionToPerform === 'REJECTED' && <span className="text-red-500">*</span>}
                 </label>
                 <Textarea
                   id="comment"
                   value={comment}
                   onChange={(e) => setComment(e.target.value)}
-                  placeholder="Ajoutez un commentaire..."
+                  placeholder={actionToPerform === 'REJECTED' ? "Expliquez la raison du rejet..." : "Ajoutez un commentaire..."}
                   className="mt-2"
                 />
+                {actionToPerform === 'REJECTED' && (
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Un commentaire est obligatoire pour expliquer le rejet
+                  </p>
+                )}
               </div>
-              {request.status === 'PENDING' && (
+              {actionToPerform === 'COMPLETED' && (
                 <div>
                   <label htmlFor="final-document" className="text-sm font-medium">
                     Document final
@@ -495,9 +653,9 @@ const DocumentDetails = ({ params }: { params: { id: string } }) => {
               <Button 
                 onClick={handleOk} 
                 disabled={updating}
-                aria-label={request.status === 'PENDING' ? "Approuver la demande" : "Rejeter la demande"}
+                aria-label={actionToPerform === 'COMPLETED' ? "Approuver la demande" : "Rejeter la demande"}
               >
-                {updating ? 'Traitement...' : request.status === 'PENDING' ? 'Approuver' : 'Rejeter'}
+                {updating ? 'Traitement...' : actionToPerform === 'COMPLETED' ? 'Approuver' : 'Rejeter'}
               </Button>
             </DialogFooter>
           </DialogContent>

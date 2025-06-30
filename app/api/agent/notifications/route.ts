@@ -8,13 +8,13 @@ export async function GET() {
   try {
     const session = await getServerSession(authOptions);
 
-    if (!session || session.user.role !== "citizen") {
+    if (!session || session.user.role !== "agent") {
       return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
     }
 
     const db = await getDb();
-    const notifications = await db.collection('Notification').find({
-      citizenId: new ObjectId(session.user.id)
+    const notifications = await db.collection('AgentNotification').find({
+      agentId: new ObjectId(session.user.id)
     }).sort({ createdAt: -1 }).toArray();
 
     // Transformer les notifications pour inclure l'id au bon format
@@ -25,7 +25,7 @@ export async function GET() {
 
     return NextResponse.json(transformedNotifications);
   } catch (error) {
-    console.error("[NOTIFICATIONS_GET]", error);
+    console.error("[AGENT_NOTIFICATIONS_GET]", error);
     return NextResponse.json({ error: "Erreur interne" }, { status: 500 });
   }
 }
@@ -34,7 +34,7 @@ export async function PATCH(request: Request) {
   try {
     const session = await getServerSession(authOptions);
 
-    if (!session || session.user.role !== "citizen") {
+    if (!session || session.user.role !== "agent") {
       return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
     }
 
@@ -46,10 +46,10 @@ export async function PATCH(request: Request) {
     }
 
     const db = await getDb();
-    const notification = await db.collection('Notification').findOneAndUpdate(
+    const notification = await db.collection('AgentNotification').findOneAndUpdate(
       {
         _id: new ObjectId(notificationId),
-        citizenId: new ObjectId(session.user.id)
+        agentId: new ObjectId(session.user.id)
       },
       {
         $set: { status: "READ" }
@@ -69,7 +69,7 @@ export async function PATCH(request: Request) {
 
     return NextResponse.json(transformedNotification);
   } catch (error) {
-    console.error("[NOTIFICATIONS_PATCH]", error);
+    console.error("[AGENT_NOTIFICATIONS_PATCH]", error);
     return NextResponse.json({ error: "Erreur interne" }, { status: 500 });
   }
-}
+} 

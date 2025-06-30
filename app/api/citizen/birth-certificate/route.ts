@@ -68,6 +68,7 @@ export async function POST(request: Request) {
       comment: data.reason,
       communeId: new ObjectId(data.communeId),
       agentId: agent._id,
+      acteNumber: data.acteNumber || null,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
