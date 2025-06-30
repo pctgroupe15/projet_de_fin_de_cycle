@@ -113,7 +113,7 @@ export default function RegisterPage() {
                       <FormItem className="space-y-1.5">
                         <FormLabel className="text-sm">Nom</FormLabel>
                         <FormControl>
-                          <Input placeholder="Dupont" {...field} className="h-9" />
+                          <Input placeholder="kakou" {...field} className="h-9" />
                         </FormControl>
                         <FormMessage className="text-xs" />
                       </FormItem>
@@ -127,7 +127,7 @@ export default function RegisterPage() {
                       <FormItem className="space-y-1.5">
                         <FormLabel className="text-sm">Prénom</FormLabel>
                         <FormControl>
-                          <Input placeholder="Jean" {...field} className="h-9" />
+                          <Input placeholder="Jean-marc" {...field} className="h-9" />
                         </FormControl>
                         <FormMessage className="text-xs" />
                       </FormItem>
@@ -155,7 +155,7 @@ export default function RegisterPage() {
                       <FormItem className="space-y-1.5">
                         <FormLabel className="text-sm">Lieu de naissance</FormLabel>
                         <FormControl>
-                          <Input placeholder="Paris" {...field} className="h-9" />
+                          <Input placeholder="Abidjan" {...field} className="h-9" />
                         </FormControl>
                         <FormMessage className="text-xs" />
                       </FormItem>
@@ -169,7 +169,7 @@ export default function RegisterPage() {
                       <FormItem className="md:col-span-2 space-y-1.5">
                         <FormLabel className="text-sm">Adresse</FormLabel>
                         <FormControl>
-                          <Input placeholder="123 rue de la Paix" {...field} className="h-9" />
+                          <Input placeholder="Cocody 2 plateaux" {...field} className="h-9" />
                         </FormControl>
                         <FormMessage className="text-xs" />
                       </FormItem>
@@ -183,7 +183,7 @@ export default function RegisterPage() {
                       <FormItem className="space-y-1.5">
                         <FormLabel className="text-sm">Numéro de téléphone</FormLabel>
                         <FormControl>
-                          <Input placeholder="+33612345678" {...field} className="h-9" />
+                          <Input placeholder="+2250747251333" {...field} className="h-9" />
                         </FormControl>
                         <FormMessage className="text-xs" />
                       </FormItem>
@@ -197,7 +197,7 @@ export default function RegisterPage() {
                       <FormItem className="space-y-1.5">
                         <FormLabel className="text-sm">Email</FormLabel>
                         <FormControl>
-                          <Input type="email" placeholder="jean.dupont@email.com" {...field} className="h-9" />
+                          <Input type="email" placeholder="jean-marc.kakou@email.com" {...field} className="h-9" />
                         </FormControl>
                         <FormMessage className="text-xs" />
                       </FormItem>
