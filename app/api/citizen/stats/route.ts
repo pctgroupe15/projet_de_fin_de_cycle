@@ -26,20 +26,21 @@ export async function GET() {
       objectId = new ObjectId(citizenId);
     } catch {}
 
-    // Récupérer toutes les demandes du citoyen (string OU ObjectId)
+    if (!objectId) {
+      return NextResponse.json({
+        totalRequests: 0,
+        lastMonthRequests: 0,
+        pendingRequests: 0,
+        validatedRequests: 0,
+        rejectedRequests: 0,
+        recentRequests: []
+      });
+    }
+
+    // Récupérer toutes les demandes du citoyen (citizenId en ObjectId uniquement)
     const [birthCertificates, birthDeclarations] = await Promise.all([
-      db.collection('BirthCertificate').find({
-        $or: [
-          { citizenId: citizenId },
-          ...(objectId ? [{ citizenId: objectId }] : [])
-        ]
-      }).toArray(),
-      db.collection('BirthDeclaration').find({
-        $or: [
-          { citizenId: citizenId },
-          ...(objectId ? [{ citizenId: objectId }] : [])
-        ]
-      }).toArray()
+      db.collection('BirthCertificate').find({ citizenId: objectId }).toArray(),
+      db.collection('BirthDeclaration').find({ citizenId: objectId }).toArray()
     ]);
 
     // Combiner les demandes
