@@ -59,7 +59,10 @@ export async function GET() {
       status: cert.status,
       createdAt: cert.createdAt,
       citizen: {
-        name: cert.citizen?.name || 'N/A',
+        ...cert.citizen,
+        name: (cert.citizen?.prenom && cert.citizen?.nom)
+          ? `${cert.citizen.prenom} ${cert.citizen.nom}`
+          : cert.citizen?.name || 'N/A',
         email: cert.citizen?.email || ''
       }
     }));
@@ -74,7 +77,10 @@ export async function GET() {
       status: decl.status,
       createdAt: decl.createdAt,
       citizen: {
-        name: decl.citizen?.name || 'N/A',
+        ...decl.citizen,
+        name: (decl.citizen?.prenom && decl.citizen?.nom)
+          ? `${decl.citizen.prenom} ${decl.citizen.nom}`
+          : decl.citizen?.name || 'N/A',
         email: decl.citizen?.email || ''
       }
     }));

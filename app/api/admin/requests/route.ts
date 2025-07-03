@@ -83,9 +83,13 @@ export async function GET(request: Request) {
         documentType: "Déclaration de naissance",
         status: declaration.status,
         createdAt: declaration.createdAt,
+        updatedAt: declaration.updatedAt || declaration.createdAt || null,
         name: `${declaration.childFirstName} ${declaration.childLastName}`,
         citizen: {
-          name: declaration.citizen?.name || '',
+          ...declaration.citizen,
+          name: (declaration.citizen?.prenom && declaration.citizen?.nom)
+            ? `${declaration.citizen.prenom} ${declaration.citizen.nom}`
+            : declaration.citizen?.name || 'N/A',
           email: declaration.citizen?.email || '',
         },
         documents: (declaration.documents || []).map((doc: any) => ({
@@ -99,9 +103,13 @@ export async function GET(request: Request) {
         documentType: "Acte de naissance",
         status: certificate.status,
         createdAt: certificate.createdAt,
+        updatedAt: certificate.updatedAt || certificate.createdAt || null,
         name: certificate.fullName,
         citizen: {
-          name: certificate.citizen?.name || '',
+          ...certificate.citizen,
+          name: (certificate.citizen?.prenom && certificate.citizen?.nom)
+            ? `${certificate.citizen.prenom} ${certificate.citizen.nom}`
+            : certificate.citizen?.name || 'N/A',
           email: certificate.citizen?.email || '',
         },
         documents: (certificate.files || []).map((doc: any) => ({

@@ -39,10 +39,16 @@ export async function GET() {
       { $project: { citizenArr: 0 } }
     ]).toArray();
 
-    // Transformer les données pour inclure l'ID dans le bon format
+    // Transformer les données pour inclure l'ID dans le bon format et enrichir citizen avec un champ name
     const transformedData = birthCertificates.map(doc => ({
       id: doc._id.toString(),
-      ...doc
+      ...doc,
+      citizen: doc.citizen ? {
+        ...doc.citizen,
+        name: (doc.citizen.prenom && doc.citizen.nom)
+          ? `${doc.citizen.prenom} ${doc.citizen.nom}`
+          : doc.citizen.name || 'N/A',
+      } : { name: 'N/A', email: doc.citizen?.email || '' }
     }));
 
     return NextResponse.json({

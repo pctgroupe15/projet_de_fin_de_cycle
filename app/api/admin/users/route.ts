@@ -28,7 +28,7 @@ export async function GET(request: Request) {
     const db = await getDb();
     // Récupérer les citoyens
     const citizens = await db.collection('Citizen').find(whereClause).project({
-      name: 1, email: 1, role: 1, status: 1, createdAt: 1
+      name: 1, prenom: 1, nom: 1, email: 1, role: 1, status: 1, createdAt: 1, dateInscription: 1
     }).toArray();
 
     // Récupérer les agents
@@ -46,17 +46,22 @@ export async function GET(request: Request) {
       ...citizens.map((user: any) => ({
         ...user,
         id: user._id,
-        displayName: user.name || "Sans nom",
+        displayName: (user.prenom && user.nom && user.prenom.trim().length > 0 && user.nom.trim().length > 0)
+  ? `${user.prenom.trim()} ${user.nom.trim()}`
+  : user.name || "Sans nom",
+        createdAt: user.createdAt || user.dateInscription || null,
       })),
       ...agents.map((user: any) => ({
         ...user,
         id: user._id,
         displayName: `${user.firstName} ${user.lastName}`,
+        createdAt: user.createdAt || null,
       })),
       ...admins.map((user: any) => ({
         ...user,
         id: user._id,
         displayName: user.name || "Sans nom",
+        createdAt: user.createdAt || null,
       })),
     ];
 

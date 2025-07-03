@@ -54,19 +54,19 @@ export function AgentLayout({ children }: AgentLayoutProps) {
       href: "/agent/dashboard",
       icon: Home
     },
-    {
-      name: "Demandes",
-      href: "/agent/documents",
-      icon: ClipboardList
-    },
-    {
-      name: "Citoyens",
-      href: "/agent/citizens",
-      icon: Users
-    },
+    // {
+    //   name: "Demandes",
+    //   href: "/agent/documents",
+    //   icon: ClipboardList
+    // },
+    // {
+    //   name: "Citoyens",
+    //   href: "/agent/citizens",
+    //   icon: Users
+    // },
     {
       name: "Documents",
-      href: "/agent/document-types",
+      href: "/agent/requests",
       icon: FileText
     },
     {

@@ -150,6 +150,93 @@ export async function GET(request: Request) {
       { $project: { birthDeclarationArr: 0, birthCertificateArr: 0 } }
     ]).toArray();
 
+    // Enrichir les demandes récentes avec citizen.name
+    const enrichedRecentRequests = recentRequests.map(req => ({
+      ...req,
+      citizen: req.citizen ? {
+        ...req.citizen,
+        name: (req.citizen.prenom && req.citizen.nom)
+          ? `${req.citizen.prenom} ${req.citizen.nom}`
+          : req.citizen.name || '',
+        email: req.citizen.email || ''
+      } : { name: '', email: '' }
+    }));
+
+    // Formater les demandes récentes pour le frontend
+    const formattedRecentRequests = enrichedRecentRequests.map((req: any) => ({
+      id: (req?._id && req._id.toString()) || req?.id || '',
+      type: "Déclaration de naissance",
+      status: req?.status || '',
+      createdAt: req?.createdAt || '',
+      name: (req?.childFirstName && req?.childLastName)
+        ? `${req.childFirstName} ${req.childLastName}`
+        : req?.name || '',
+      citizen: req?.citizen ? {
+        name: req.citizen.name || '',
+        email: req.citizen.email || ''
+      } : { name: '', email: '' }
+    }));
+
+    // Enrichir les paiements récents avec citizen.name
+    const enrichedRecentPayments = await Promise.all(recentPayments.map(async payment => {
+      let birthDeclaration = payment.birthDeclaration;
+      let birthCertificate = payment.birthCertificate;
+      let declarationCitizen = null;
+      let certificateCitizen = null;
+      const db = await getDb();
+      if (birthDeclaration && birthDeclaration.citizenId) {
+        declarationCitizen = await db.collection('Citizen').findOne({ _id: birthDeclaration.citizenId });
+      }
+      if (birthCertificate && birthCertificate.citizenId) {
+        certificateCitizen = await db.collection('Citizen').findOne({ _id: birthCertificate.citizenId });
+      }
+      if (birthDeclaration && declarationCitizen) {
+        birthDeclaration = {
+          ...birthDeclaration,
+          citizen: {
+            ...declarationCitizen,
+            name: (declarationCitizen.prenom && declarationCitizen.nom)
+              ? `${declarationCitizen.prenom} ${declarationCitizen.nom}`
+              : declarationCitizen.name || '',
+            email: declarationCitizen.email || ''
+          }
+        };
+      }
+      if (birthCertificate && certificateCitizen) {
+        birthCertificate = {
+          ...birthCertificate,
+          citizen: {
+            ...certificateCitizen,
+            name: (certificateCitizen.prenom && certificateCitizen.nom)
+              ? `${certificateCitizen.prenom} ${certificateCitizen.nom}`
+              : certificateCitizen.name || '',
+            email: certificateCitizen.email || ''
+          }
+        };
+      }
+      return {
+        ...payment,
+        birthDeclaration,
+        birthCertificate
+      };
+    }));
+
+    // Formater les paiements récents pour le frontend
+    const formattedRecentPayments = enrichedRecentPayments.map((payment: any) => ({
+      ...payment,
+      citizen: payment.birthDeclaration?.citizen
+        ? {
+            name: payment.birthDeclaration.citizen.name || '',
+            email: payment.birthDeclaration.citizen.email || ''
+          }
+        : payment.birthCertificate?.citizen
+        ? {
+            name: payment.birthCertificate.citizen.name || '',
+            email: payment.birthCertificate.citizen.email || ''
+          }
+        : { name: '', email: '' }
+    }));
+
     const stats = {
       users: {
         total: totalUsers,
@@ -175,8 +262,8 @@ export async function GET(request: Request) {
         total: totalAgents,
         active: activeAgents,
       },
-      recentRequests,
-      recentPayments,
+      recentRequests: formattedRecentRequests,
+      recentPayments: formattedRecentPayments,
     };
 
     return NextResponse.json({

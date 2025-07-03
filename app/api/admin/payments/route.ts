@@ -97,7 +97,46 @@ export async function GET(request: Request) {
       { $project: { birthDeclarationArr: 0, birthCertificateArr: 0, declarationCitizenArr: 0, certificateCitizenArr: 0 } }
     ]).toArray();
 
-    return NextResponse.json(payments);
+    // Enrichir chaque paiement avec citizen.name pour birthDeclaration et birthCertificate
+    const enrichedPayments = payments.map(payment => {
+      // Pour la déclaration de naissance
+      let birthDeclaration = payment.birthDeclaration;
+      let declarationCitizen = payment.declarationCitizen;
+      if (birthDeclaration && declarationCitizen) {
+        birthDeclaration = {
+          ...birthDeclaration,
+          citizen: {
+            ...declarationCitizen,
+            name: (declarationCitizen.prenom && declarationCitizen.nom)
+              ? `${declarationCitizen.prenom} ${declarationCitizen.nom}`
+              : declarationCitizen.name || '',
+            email: declarationCitizen.email || ''
+          }
+        };
+      }
+      // Pour l'acte de naissance
+      let birthCertificate = payment.birthCertificate;
+      let certificateCitizen = payment.certificateCitizen;
+      if (birthCertificate && certificateCitizen) {
+        birthCertificate = {
+          ...birthCertificate,
+          citizen: {
+            ...certificateCitizen,
+            name: (certificateCitizen.prenom && certificateCitizen.nom)
+              ? `${certificateCitizen.prenom} ${certificateCitizen.nom}`
+              : certificateCitizen.name || '',
+            email: certificateCitizen.email || ''
+          }
+        };
+      }
+      return {
+        ...payment,
+        birthDeclaration,
+        birthCertificate
+      };
+    });
+
+    return NextResponse.json(enrichedPayments);
   } catch (error) {
     console.error("Error fetching payments:", error);
     return NextResponse.json(

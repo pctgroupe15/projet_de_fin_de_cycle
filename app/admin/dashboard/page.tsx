@@ -56,6 +56,8 @@ interface DashboardStats {
     name: string;
     citizen: string | { name: string; email: string };
     email: string;
+    birthDeclaration?: { citizen?: { name: string; email: string } };
+    birthCertificate?: { citizen?: { name: string; email: string } };
   }[];
 }
 
@@ -199,7 +201,9 @@ export default function DashboardPage() {
                     <div>
                       <p className="font-medium">{request.type}</p>
                       <p className="text-sm text-muted-foreground">
-                        {typeof request.citizen === 'object' && request.citizen !== null ? (request.citizen as { name: string }).name : request.citizen}
+                        {typeof request.citizen === 'object' && request.citizen !== null
+                          ? request.citizen.name || "N/A"
+                          : request.citizen || "N/A"}
                       </p>
                     </div>
                     <div className="text-right">
@@ -235,27 +239,27 @@ export default function DashboardPage() {
             <CardContent>
               <div className="space-y-4">
                 {stats.recentPayments.map((payment) => (
-                  <div
-                    key={payment.id}
-                    className="flex items-center justify-between"
-                  >
+                  <div key={payment.id} className="flex items-center justify-between">
                     <div>
                       <p className="font-medium">{payment.type}</p>
                       <p className="text-sm text-muted-foreground">
-                        {typeof payment.citizen === 'object' && payment.citizen !== null ? (payment.citizen as { name: string }).name : payment.citizen}
+                        {payment.birthDeclaration?.citizen?.name || payment.birthCertificate?.citizen?.name || "N/A"}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {typeof payment.citizen === 'object' && payment.citizen !== null
+                          ? payment.citizen.email || "N/A"
+                          : "N/A"}
                       </p>
                     </div>
                     <div className="text-right">
                       <p className="font-medium">{payment.amount} €</p>
-                      <p
-                        className={`text-sm ${
-                          payment.status === "PAID"
-                            ? "text-green-600"
-                            : payment.status === "PENDING"
-                            ? "text-yellow-600"
-                            : "text-red-600"
-                        }`}
-                      >
+                      <p className={`text-sm ${
+                        payment.status === "PAID"
+                          ? "text-green-600"
+                          : payment.status === "PENDING"
+                          ? "text-yellow-600"
+                          : "text-red-600"
+                      }`}>
                         {payment.status === "PAID"
                           ? "Payé"
                           : payment.status === "PENDING"

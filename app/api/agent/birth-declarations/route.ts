@@ -46,9 +46,20 @@ export async function GET() {
       { $project: { citizenArr: 0, paymentArr: 0 } }
     ]).toArray();
 
+    // Enrichir chaque déclaration avec citizen.name
+    const declarationsWithCitizenName = birthDeclarations.map(decl => ({
+      ...decl,
+      citizen: decl.citizen ? {
+        ...decl.citizen,
+        name: (decl.citizen.prenom && decl.citizen.nom)
+          ? `${decl.citizen.prenom} ${decl.citizen.nom}`
+          : decl.citizen.name || 'N/A',
+      } : { name: 'N/A', email: decl.citizen?.email || '' }
+    }));
+
     return NextResponse.json({
       success: true,
-      data: birthDeclarations
+      data: declarationsWithCitizenName
     });
   } catch (error) {
     console.error("[BIRTH_DECLARATIONS_GET]", error);

@@ -130,8 +130,14 @@ export default function PaymentsPage() {
 
   const filteredPayments = payments.filter((payment) => {
     const searchLower = searchQuery.toLowerCase();
-    const citizenName = payment.birthDeclaration?.citizen.name || payment.birthCertificate?.citizen.name || "";
-    const citizenEmail = payment.birthDeclaration?.citizen.email || payment.birthCertificate?.citizen.email || "";
+    const citizenName =
+      payment.birthDeclaration?.citizen?.name ||
+      payment.birthCertificate?.citizen?.name ||
+      "";
+    const citizenEmail =
+      payment.birthDeclaration?.citizen?.email ||
+      payment.birthCertificate?.citizen?.email ||
+      "";
     const documentName = payment.birthDeclaration 
       ? `${payment.birthDeclaration.childFirstName} ${payment.birthDeclaration.childLastName}`
       : payment.birthCertificate?.fullName || "";
@@ -224,23 +230,21 @@ export default function PaymentsPage() {
                       <TableCell>
                         <div>
                           <p className="font-medium">
-                            {payment.birthDeclaration?.citizen.name || payment.birthCertificate?.citizen.name}
+                            {payment.birthDeclaration?.citizen?.name || payment.birthCertificate?.citizen?.name}
                           </p>
                           <p className="text-sm text-muted-foreground">
-                            {payment.birthDeclaration?.citizen.email || payment.birthCertificate?.citizen.email}
+                            {payment.birthDeclaration?.citizen?.email || payment.birthCertificate?.citizen?.email}
                           </p>
                         </div>
                       </TableCell>
                       <TableCell>
                         {payment.birthDeclaration 
                           ? `${payment.birthDeclaration.childFirstName} ${payment.birthDeclaration.childLastName}`
-                          : payment.birthCertificate?.fullName}
+                          : payment.birthCertificate?.fullName || ""}
                       </TableCell>
-                      <TableCell>{payment.amount} €</TableCell>
+                      <TableCell>{payment.amount}</TableCell>
                       <TableCell>{getStatusBadge(payment.status)}</TableCell>
-                      <TableCell>
-                        {new Date(payment.createdAt).toLocaleDateString()}
-                      </TableCell>
+                      <TableCell>{new Date(payment.createdAt).toLocaleDateString()}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -251,4 +255,4 @@ export default function PaymentsPage() {
       </div>
     </AdminLayout>
   );
-} 
+}
