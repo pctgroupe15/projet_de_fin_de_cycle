@@ -12,27 +12,27 @@ const services = [
   {
     title: "Certificats de Mariage",
     description: "Obtenez des certificats de mariage pour vos démarches administratives.",
-    icon: "https://wp-medias-carnet.leparisien.fr/2022/02/52294e43-gettyimages-1048304440.jpg"
+    icon: "https://mairiecocody.com/banque_img/articles/23032022/276321128_1930294257178963_5785177963529867890_n.jpg"
   },
   {
-    title: "Documents d'Identité",
+    title: "Déclaration de naissance",
     description: "Lancez vos demandes de documents d'identité officiels facilement.",
-    icon: "https://images.pexels.com/photos/5212320/pexels-photo-5212320.jpeg"
+    icon: "https://img.freepik.com/photos-premium/pied-bebe-peau-noire-africaine-bebe-nouveau-ne-place-main-du-pere-concept-pour-montrer-amour_34985-949.jpg"
   },
   {
-    title: "Certificats de Résidence",
+    title: "Certificats de décès",
     description: "Demandez des attestations de résidence pour vos différentes procédures.",
-    icon: "https://images.pexels.com/photos/323780/pexels-photo-323780.jpeg"
+    icon: "https://boisseuil87.fr/wp-content/uploads/2023/04/dece.png"
   },
   {
     title: "Livrets de Famille",
     description: "Obtenez ou mettez à jour votre livret de famille en ligne.",
-    icon: "https://images.pexels.com/photos/5257481/pexels-photo-5257481.jpeg"
+    icon: "https://img.lemde.fr/2022/01/26/2675/0/3744/1872/1342/671/60/0/b377b59_793661046-pns-3188907.jpg"
   },
   {
     title: "Autres Documents",
     description: "Consultez notre catalogue complet pour tous vos besoins administratifs.",
-    icon: "https://images.pexels.com/photos/4386366/pexels-photo-4386366.jpeg"
+    icon: "https://www.rara.ae/wp-content/uploads/2024/04/document-clearing.jpeg"
   },
 ];
 

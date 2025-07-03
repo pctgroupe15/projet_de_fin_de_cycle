@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { getDb } from '@/lib/mongodb';
 import { authOptions } from '@/lib/auth';
+import { ObjectId } from 'mongodb';
 
 export async function GET() {
   try {
@@ -19,10 +20,26 @@ export async function GET() {
     lastMonth.setHours(0, 0, 0, 0);
 
     const db = await getDb();
-    // Récupérer toutes les demandes du citoyen
+    const citizenId = session.user.id;
+    let objectId = null;
+    try {
+      objectId = new ObjectId(citizenId);
+    } catch {}
+
+    // Récupérer toutes les demandes du citoyen (string OU ObjectId)
     const [birthCertificates, birthDeclarations] = await Promise.all([
-      db.collection('BirthCertificate').find({ citizenId: session.user.id }).toArray(),
-      db.collection('BirthDeclaration').find({ citizenId: session.user.id }).toArray()
+      db.collection('BirthCertificate').find({
+        $or: [
+          { citizenId: citizenId },
+          ...(objectId ? [{ citizenId: objectId }] : [])
+        ]
+      }).toArray(),
+      db.collection('BirthDeclaration').find({
+        $or: [
+          { citizenId: citizenId },
+          ...(objectId ? [{ citizenId: objectId }] : [])
+        ]
+      }).toArray()
     ]);
 
     // Combiner les demandes

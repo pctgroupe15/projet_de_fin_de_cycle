@@ -67,6 +67,11 @@ export default function CitizenDashboard() {
 
   useEffect(() => {
     fetchStats();
+    fetch('/api/auth/session')
+      .then(res => res.json())
+      .then(data => {
+        console.log('ID citoyen connecté:', data?.user?.id);
+      });
   }, []);
 
   const fetchStats = async () => {
@@ -266,7 +271,7 @@ export default function CitizenDashboard() {
                         </div>
                         <div className="flex items-center space-x-4">
                           {getStatusBadge(request.status)}
-                          {request.status === 'valide' && request.files && request.files.length > 0 && (
+                          {request.status === 'COMPLETED' && request.files && request.files.length > 0 && (
                             (() => {
                               const finalDocument = request.files.find(file => file.type === 'acte_naissance_final');
                               if (finalDocument) {
@@ -282,7 +287,7 @@ export default function CitizenDashboard() {
                               }
                             })()
                           )}
-                          {request.status !== 'valide' && (
+                          {request.status !== 'COMPLETED' && (
                             <Link href={`/citizen/request/${request._id}`}>
                               <Button variant="ghost" size="icon">
                                 <Eye className="h-5 w-5" />
@@ -312,9 +317,9 @@ export default function CitizenDashboard() {
                       className="flex items-start space-x-4 p-4 border rounded-lg hover:bg-muted/50 transition-colors"
                     >
                       <div className={`mt-1 rounded-full p-1 ${
-                        request.status === 'valide' 
+                        request.status === 'COMPLETED' 
                           ? 'bg-green-100 text-green-600' 
-                          : request.status === 'rejete'
+                          : request.status === 'REJECTED'
                             ? 'bg-red-100 text-red-600'
                             : 'bg-amber-100 text-amber-600'
                       }`}>
@@ -332,7 +337,7 @@ export default function CitizenDashboard() {
                         <p className="text-sm text-muted-foreground mt-1">
                           {getStatusLabel(request.status)}
                         </p>
-                        {request.status === 'valide' && request.files && request.files.length > 0 && (
+                        {request.status === 'COMPLETED' && request.files && request.files.length > 0 && (
                           (() => {
                             const finalDocument = request.files.find(file => file.type === 'acte_naissance_final');
                             if (finalDocument) {
