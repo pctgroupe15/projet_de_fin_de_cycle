@@ -14,26 +14,7 @@ import {
   Baby
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
+import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { CitizenLayout } from "@/components/layouts/citizen-layout";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { toast } from "sonner";
@@ -75,8 +56,8 @@ const documentTypes = [
   },
   { 
     id: "residence_certificate", 
-    label: "Certificat de résidence", 
-    description: "Obtenir un certificat de résidence",
+    label: "Certificat de décès", 
+    description: "Obtenir un certificat de décès",
     icon: FileText,
     component: null
   },
@@ -87,27 +68,27 @@ const documentTypes = [
     icon: FileText,
     component: null
   },
-  { 
-    id: "criminal_record", 
-    label: "Extrait de casier judiciaire", 
-    description: "Obtenir un extrait de casier judiciaire",
-    icon: FileText,
-    component: null
-  },
-  { 
-    id: "id_card", 
-    label: "Carte d'identité", 
-    description: "Demander une carte d'identité",
-    icon: FileText,
-    component: null
-  },
-  { 
-    id: "passport", 
-    label: "Passeport", 
-    description: "Demander un passeport",
-    icon: FileText,
-    component: null
-  }
+  // { 
+  //   id: "criminal_record", 
+  //   label: "Extrait de casier judiciaire", 
+  //   description: "Obtenir un extrait de casier judiciaire",
+  //   icon: FileText,
+  //   component: null
+  // },
+  // { 
+  //   id: "id_card", 
+  //   label: "Carte d'identité", 
+  //   description: "Demander une carte d'identité",
+  //   icon: FileText,
+  //   component: null
+  // },
+  // { 
+  //   id: "passport", 
+  //   label: "Passeport", 
+  //   description: "Demander un passeport",
+  //   icon: FileText,
+  //   component: null
+  // }
 ];
 
 // Niveaux d'urgence
